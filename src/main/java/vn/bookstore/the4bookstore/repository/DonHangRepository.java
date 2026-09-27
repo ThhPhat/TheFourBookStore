@@ -21,4 +21,14 @@ public interface DonHangRepository extends JpaRepository<DonHang, Integer> {
     Long countByKhachHang(vn.bookstore.the4bookstore.entity.KhachHang khachHang);
 
     Long countByKhachHangAndTrangThai(vn.bookstore.the4bookstore.entity.KhachHang khachHang, String trangThai);
+
+    java.util.List<DonHang> findByKhuyenMaiOrderByNgayDatDesc(vn.bookstore.the4bookstore.entity.KhuyenMai khuyenMai);
+
+    Long countByKhuyenMai(vn.bookstore.the4bookstore.entity.KhuyenMai khuyenMai);
+
+    @Query("SELECT COALESCE(SUM(dh.tienGiam), 0) FROM DonHang dh WHERE dh.khuyenMai = :km")
+    Long sumTienGiamByKhuyenMai(@Param("km") vn.bookstore.the4bookstore.entity.KhuyenMai km);
+
+    @Query("SELECT COALESCE(SUM(dh.tongTien), 0) FROM DonHang dh WHERE dh.khuyenMai = :km")
+    Long sumTongTienByKhuyenMai(@Param("km") vn.bookstore.the4bookstore.entity.KhuyenMai km);
 }

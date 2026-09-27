@@ -63,6 +63,30 @@ public class DataSeeder implements CommandLineRunner {
         createAccountIfNotFound("admin", "ADMIN", defaultPassword);
         createAccountIfNotFound("quanly", "QUANLY", defaultPassword);
 
+        // Đảm bảo tài khoản admin và quanly luôn có mật khẩu là 123456 và trạng thái HoatDong
+        taiKhoanRepository.findByTenDangNhap("admin").ifPresent(tk -> {
+            tk.setMatKhauHash(defaultPassword);
+            tk.setVaiTro("ADMIN");
+            tk.setTrangThai("HoatDong");
+            taiKhoanRepository.save(tk);
+        });
+        taiKhoanRepository.findByTenDangNhap("quanly").ifPresent(tk -> {
+            tk.setMatKhauHash(defaultPassword);
+            tk.setVaiTro("QUANLY");
+            tk.setTrangThai("HoatDong");
+            taiKhoanRepository.save(tk);
+        });
+
+        // Tự động cấp quyền ADMIN cho các tài khoản của nhà phát triển
+        java.util.List<String> devAccounts = java.util.List.of("caotuong", "caotuong14@gmail.com", "caotuong06@gmail.com", "24110375@student.hcmute.edu.vn");
+        for (String id : devAccounts) {
+            taiKhoanRepository.findByTenDangNhap(id).or(() -> taiKhoanRepository.findByEmail(id)).ifPresent(tk -> {
+                tk.setVaiTro("ADMIN");
+                tk.setTrangThai("HoatDong");
+                taiKhoanRepository.save(tk);
+            });
+        }
+
         // Khởi tạo tài khoản kiểm thử cho email SMTP nếu được cấu hình trong .env
         String configuredEmail = (mailUsername != null && !mailUsername.isBlank()) ? mailUsername.trim() : System.getenv("MAIL_USERNAME");
         if (configuredEmail != null && !configuredEmail.isBlank() && taiKhoanRepository.findByEmail(configuredEmail.trim()).isEmpty()) {

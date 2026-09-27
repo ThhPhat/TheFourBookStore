@@ -60,12 +60,12 @@ public class ReportService {
     }
 
     public List<TopSellingBookDTO> getTopSellingBooks() {
-        String sql = "SELECT sp.masp, sp.tensp, SUM(ct.so_luong) as so_luong_ban " +
+        String sql = "SELECT sp.masp, sp.tensp, SUM(ct.so_luong) as so_luong_ban, sp.gia_ban " +
                      "FROM chi_tiet_don_hang ct " +
                      "JOIN don_hang dh ON ct.madh = dh.madh " +
                      "JOIN san_pham sp ON ct.masp = sp.masp " +
                      "WHERE dh.trang_thai = 'DaGiao' " +
-                     "GROUP BY sp.masp, sp.tensp " +
+                     "GROUP BY sp.masp, sp.tensp, sp.gia_ban " +
                      "ORDER BY so_luong_ban DESC " +
                      "LIMIT 10";
 
@@ -77,7 +77,8 @@ public class ReportService {
             Long maSP = ((Number) row[0]).longValue();
             String tenSP = (String) row[1];
             Long soLuongBan = ((Number) row[2]).longValue();
-            dtos.add(new TopSellingBookDTO(maSP, tenSP, soLuongBan));
+            Integer giaBan = (row.length > 3 && row[3] != null) ? ((Number) row[3]).intValue() : null;
+            dtos.add(new TopSellingBookDTO(maSP, tenSP, soLuongBan, giaBan));
         }
         return dtos;
     }
