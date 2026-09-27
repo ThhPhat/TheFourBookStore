@@ -47,6 +47,8 @@ public class KhoService {
         Kho kho = getKhoById(id);
         kho.setTenKho(khoDetails.getTenKho());
         kho.setDiaChi(khoDetails.getDiaChi());
+        kho.setSoDienThoai(khoDetails.getSoDienThoai());
+        kho.setGhiChu(khoDetails.getGhiChu());
         return khoRepository.save(kho);
     }
 

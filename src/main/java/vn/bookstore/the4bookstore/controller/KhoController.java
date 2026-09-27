@@ -22,19 +22,33 @@ public class KhoController {
     @Autowired private NhaCungCapRepository nhaCungCapRepository;
     @Autowired private vn.bookstore.the4bookstore.repository.NhanVienRepository nhanVienRepository;
 
+    @Autowired private vn.bookstore.the4bookstore.repository.KhoHangRepository khoHangRepository;
+
     @GetMapping
     public String listKho(Model model) {
         model.addAttribute("khos", khoService.getAllKho());
         return "admin/kho/list";
     }
 
+    @GetMapping("/{id}/detail")
+    public String khoDetail(@PathVariable Integer id, Model model) {
+        vn.bookstore.the4bookstore.entity.Kho kho = khoService.getKhoById(id);
+        model.addAttribute("kho", kho);
+        model.addAttribute("khoHangs", khoHangRepository.findByKho(kho));
+        return "admin/kho/detail";
+    }
+
     @PostMapping("/save")
     public String saveKho(@RequestParam(required = false) Integer maKho, 
                           @RequestParam String tenKho, 
-                          @RequestParam String diaChi) {
+                          @RequestParam String diaChi,
+                          @RequestParam(required = false) String soDienThoai,
+                          @RequestParam(required = false) String ghiChu) {
         vn.bookstore.the4bookstore.entity.Kho k = new vn.bookstore.the4bookstore.entity.Kho();
         k.setTenKho(tenKho);
         k.setDiaChi(diaChi);
+        k.setSoDienThoai(soDienThoai);
+        k.setGhiChu(ghiChu);
         if (maKho != null) {
             khoService.updateKho(maKho, k);
         } else {

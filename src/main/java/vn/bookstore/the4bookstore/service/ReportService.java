@@ -1,21 +1,21 @@
 package vn.bookstore.the4bookstore.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import vn.bookstore.the4bookstore.dto.MonthlyRevenueDTO;
-import vn.bookstore.the4bookstore.dto.TopSellingBookDTO;
-import vn.bookstore.the4bookstore.repository.ChiTietDonHangRepository;
-import vn.bookstore.the4bookstore.repository.DonHangRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import vn.bookstore.the4bookstore.dto.MonthlyRevenueDTO;
+import vn.bookstore.the4bookstore.dto.TopSellingBookDTO;
+import vn.bookstore.the4bookstore.repository.ChiTietDonHangRepository;
+import vn.bookstore.the4bookstore.repository.DonHangRepository;
 
 @Service
 public class ReportService {
@@ -38,10 +38,10 @@ public class ReportService {
     }
 
     public List<MonthlyRevenueDTO> getRevenueByMonth() {
-        String sql = "SELECT YEAR(dh.ngay_dat) as nam, MONTH(dh.ngay_dat) as thang, SUM(dh.tong_tien) as doanh_thu " +
+        String sql = "SELECT YEAR(dh.ngay_hoan_thanh) as nam, MONTH(dh.ngay_hoan_thanh) as thang, SUM(dh.tong_tien) as doanh_thu " +
                      "FROM don_hang dh " +
-                     "WHERE dh.trang_thai = 'DaGiao' " +
-                     "GROUP BY YEAR(dh.ngay_dat), MONTH(dh.ngay_dat) " +
+                     "WHERE dh.trang_thai = 'DaGiao' AND dh.ngay_hoan_thanh IS NOT NULL " +
+                     "GROUP BY YEAR(dh.ngay_hoan_thanh), MONTH(dh.ngay_hoan_thanh) " +
                      "ORDER BY nam DESC, thang DESC " +
                      "LIMIT 12";
 
@@ -83,11 +83,11 @@ public class ReportService {
         return dtos;
     }
 
-    public Long getTodayOrderCount() {
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        LocalDateTime endOfDay = LocalDate.now().plusDays(1).atStartOfDay();
+    public Long getThisMonthOrderCount() {
+        LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime nextMonth = startOfMonth.plusMonths(1);
 
-        Long count = donHangRepository.getOrderCountByDateRange(startOfDay, endOfDay);
+        Long count = donHangRepository.getOrderCountByDateRange(startOfMonth, nextMonth);
         return count != null ? count : 0L;
     }
 
