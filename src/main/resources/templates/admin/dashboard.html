@@ -35,14 +35,6 @@
                                 Giám sát doanh thu kinh doanh, biểu đồ tăng trưởng và cảnh báo hàng tồn kho theo thời gian thực.
                             </p>
                         </div>
-
-                        <!-- Top Actions: Return to Storefront -->
-                        <div class="flex items-center gap-space-sm flex-wrap">
-                            <a th:href="@{/}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-container hover:bg-primary-container/90 text-on-primary font-label-md font-semibold shadow-sm transition-all border border-surface-container/60">
-                                <span class="material-symbols-outlined text-[20px]">storefront</span>
-                                <span>Xem Cửa Hàng (Trang Chủ)</span>
-                            </a>
-                        </div>
                     </div>
 
                     <!-- Stat Bento Grid (4 Cards) -->
@@ -58,26 +50,26 @@
                             </div>
                             <div>
                                 <div class="font-headline-xl text-headline-xl font-bold text-on-surface tabular-nums"
-                                     th:text="${monthlyRevenue != null and !monthlyRevenue.isEmpty() ? #numbers.formatDecimal(monthlyRevenue[0].revenue, 0, 'POINT', 0, 'COMMA') + ' ₫' : '0 ₫'}">
+                                     th:text="${monthlyRevenue != null and not #lists.isEmpty(monthlyRevenue) ? #numbers.formatDecimal(monthlyRevenue[0].revenue, 0, 'POINT', 0, 'COMMA') + ' ₫' : '0 ₫'}">
                                     0 ₫
                                 </div>
                                 <span class="text-xs text-on-surface-variant mt-1 block">Cập nhật theo đơn hoàn tất</span>
                             </div>
                         </div>
 
-                        <!-- Card 2: Đơn hàng hôm nay -->
+                        <!-- Card 2: Đơn hàng tháng này -->
                         <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-surface-container/60 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="font-label-sm text-label-sm font-semibold uppercase text-on-surface-variant tracking-wider">Đơn Hàng Hôm Nay</span>
+                                <span class="font-label-sm text-label-sm font-semibold uppercase text-on-surface-variant tracking-wider">Đơn Hàng Tháng Này</span>
                                 <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                                     <span class="material-symbols-outlined text-[20px]">shopping_cart</span>
                                 </div>
                             </div>
                             <div>
-                                <div class="font-headline-xl text-headline-xl font-bold text-on-surface tabular-nums" th:text="${todayOrders != null ? todayOrders : 0}">
+                                <div class="font-headline-xl text-headline-xl font-bold text-on-surface tabular-nums" th:text="${monthlyOrders != null ? monthlyOrders : 0}">
                                     0
                                 </div>
-                                <span class="text-xs text-on-surface-variant mt-1 block">Đơn phát sinh trong 24h</span>
+                                <span class="text-xs text-on-surface-variant mt-1 block">Đơn phát sinh trong tháng</span>
                             </div>
                         </div>
 

@@ -14,6 +14,13 @@ public class OrderService {
         DonHang dh = donHangRepository.findById(id.intValue())
             .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + id));
         dh.setTrangThai(status);
+        if ("DaGiao".equals(status)) {
+            dh.setNgayHoanThanh(java.time.LocalDateTime.now());
+        } else if ("DaXacNhan".equals(status)) {
+            if (dh.getNgayXacNhan() == null) {
+                dh.setNgayXacNhan(java.time.LocalDateTime.now());
+            }
+        }
         donHangRepository.save(dh);
     }
 }

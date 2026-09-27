@@ -13,4 +13,5 @@ public class TopSellingBookDTO {
     private Long sachId;
     private String tenSach;
     private Long soLuongBan;
+    private Integer giaBan;
 }
