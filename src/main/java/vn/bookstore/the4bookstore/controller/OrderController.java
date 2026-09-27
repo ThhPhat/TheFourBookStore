@@ -26,15 +26,18 @@ public class OrderController {
     private final KhachHangRepository khachHangRepository;
     private final TaiKhoanRepository taiKhoanRepository;
     private final DonHangRepository donHangRepository;
+    private final ThanhToanRepository thanhToanRepository;
 
     public OrderController(DonHangService donHangService,
                            KhachHangRepository khachHangRepository,
                            TaiKhoanRepository taiKhoanRepository,
-                           DonHangRepository donHangRepository) {
+                           DonHangRepository donHangRepository,
+                           ThanhToanRepository thanhToanRepository) {
         this.donHangService = donHangService;
         this.khachHangRepository = khachHangRepository;
         this.taiKhoanRepository = taiKhoanRepository;
         this.donHangRepository = donHangRepository;
+        this.thanhToanRepository = thanhToanRepository;
     }
 
     // ==================== Helper: Lấy TaiKhoan từ Authentication ====================
@@ -146,6 +149,7 @@ public class OrderController {
 
             model.addAttribute("donHang", donHang);
             model.addAttribute("khachHang", kh);
+            model.addAttribute("thanhToan", thanhToanRepository.findFirstByDonHangOrderByMaThanhToanDesc(donHang).orElse(null));
 
             return "order/detail";
         } catch (Exception e) {
