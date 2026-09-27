@@ -1,11 +1,12 @@
 package vn.bookstore.the4bookstore.repository;
+import java.time.LocalDateTime;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import vn.bookstore.the4bookstore.entity.DonHang;
 
-import java.time.LocalDateTime;
+import vn.bookstore.the4bookstore.entity.DonHang;
 
 @Repository
 public interface DonHangRepository extends JpaRepository<DonHang, Integer> {
@@ -30,4 +31,14 @@ public interface DonHangRepository extends JpaRepository<DonHang, Integer> {
     Long countByTrangThaiIn(java.util.List<String> trangThaiList);
 
     Long countByNgayDatBetween(LocalDateTime startDate, LocalDateTime endDate);
+
+    java.util.List<DonHang> findByKhuyenMaiOrderByNgayDatDesc(vn.bookstore.the4bookstore.entity.KhuyenMai khuyenMai);
+
+    Long countByKhuyenMai(vn.bookstore.the4bookstore.entity.KhuyenMai khuyenMai);
+
+    @Query("SELECT COALESCE(SUM(dh.tienGiam), 0) FROM DonHang dh WHERE dh.khuyenMai = :km")
+    Long sumTienGiamByKhuyenMai(@Param("km") vn.bookstore.the4bookstore.entity.KhuyenMai km);
+
+    @Query("SELECT COALESCE(SUM(dh.tongTien), 0) FROM DonHang dh WHERE dh.khuyenMai = :km")
+    Long sumTongTienByKhuyenMai(@Param("km") vn.bookstore.the4bookstore.entity.KhuyenMai km);
 }

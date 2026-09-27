@@ -1,21 +1,21 @@
 package vn.bookstore.the4bookstore.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import vn.bookstore.the4bookstore.dto.MonthlyRevenueDTO;
-import vn.bookstore.the4bookstore.dto.TopSellingBookDTO;
-import vn.bookstore.the4bookstore.repository.ChiTietDonHangRepository;
-import vn.bookstore.the4bookstore.repository.DonHangRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import vn.bookstore.the4bookstore.dto.MonthlyRevenueDTO;
+import vn.bookstore.the4bookstore.dto.TopSellingBookDTO;
+import vn.bookstore.the4bookstore.repository.ChiTietDonHangRepository;
+import vn.bookstore.the4bookstore.repository.DonHangRepository;
 
 @Service
 public class ReportService {
@@ -77,7 +77,7 @@ public class ReportService {
             Long maSP = ((Number) row[0]).longValue();
             String tenSP = (String) row[1];
             Long soLuongBan = ((Number) row[2]).longValue();
-            Integer giaBan = row[3] != null ? ((Number) row[3]).intValue() : null;
+            Integer giaBan = (row.length > 3 && row[3] != null) ? ((Number) row[3]).intValue() : null;
             dtos.add(new TopSellingBookDTO(maSP, tenSP, soLuongBan, giaBan));
         }
         return dtos;

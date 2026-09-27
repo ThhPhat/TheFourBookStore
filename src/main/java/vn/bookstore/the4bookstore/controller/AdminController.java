@@ -66,7 +66,12 @@ public class AdminController {
     }
 
     // ==================== DASHBOARD ====================
-    @GetMapping({"", "/", "/dashboard"})
+    @GetMapping({"", "/"})
+    public String adminRoot() {
+        return "redirect:/admin/dashboard";
+    }
+
+    @GetMapping("/dashboard")
     public String dashboard(Model model) {
         model.addAttribute("monthlyRevenue", reportService.getRevenueByMonth());
         model.addAttribute("topBooks", reportService.getTopSellingBooks());

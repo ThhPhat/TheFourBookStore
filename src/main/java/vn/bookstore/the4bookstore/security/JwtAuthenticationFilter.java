@@ -38,37 +38,50 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
 
         if (token != null && jwtService.validateToken(token)) {
-            if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                String username = jwtService.extractUsername(token);
-                String email = jwtService.extractEmail(token);
-                List<String> roles = jwtService.extractRoles(token);
+            String username = jwtService.extractUsername(token);
+            String email = jwtService.extractEmail(token);
+            List<String> roles = jwtService.extractRoles(token);
 
-                Optional<TaiKhoan> tkOpt = Optional.empty();
-                if (username != null && !username.isBlank()) {
-                    tkOpt = taiKhoanRepository.findByTenDangNhap(username);
-                }
-                if (tkOpt.isEmpty() && email != null && !email.isBlank()) {
-                    tkOpt = taiKhoanRepository.findByEmail(email);
-                }
+            Optional<TaiKhoan> tkOpt = Optional.empty();
+            if (username != null && !username.isBlank()) {
+                tkOpt = taiKhoanRepository.findByTenDangNhap(username);
+            }
+            if (tkOpt.isEmpty() && email != null && !email.isBlank()) {
+                tkOpt = taiKhoanRepository.findByEmail(email);
+            }
 
-                if (tkOpt.isPresent()) {
-                    TaiKhoan taiKhoan = tkOpt.get();
-                    CustomUserDetails userDetails = new CustomUserDetails(taiKhoan);
+            if (tkOpt.isPresent()) {
+                TaiKhoan taiKhoan = tkOpt.get();
+                CustomUserDetails userDetails = new CustomUserDetails(taiKhoan);
+
+                org.springframework.security.core.Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+                boolean shouldUpdate = (currentAuth == null 
+                        || !currentAuth.isAuthenticated() 
+                        || "anonymousUser".equals(currentAuth.getPrincipal())
+                        || currentAuth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equalsIgnoreCase("ROLE_" + taiKhoan.getVaiTro())));
+
+                if (shouldUpdate) {
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities()
                     );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                } else if (username != null) {
-                    var authorities = roles.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            username, null, authorities
-                    );
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (request.getSession(false) != null) {
+                        request.getSession(false).setAttribute(
+                                org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                                SecurityContextHolder.getContext()
+                        );
+                    }
                 }
+            } else if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                var authorities = roles.stream()
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        username, null, authorities
+                );
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
 
