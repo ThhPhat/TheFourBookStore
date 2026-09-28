@@ -66,11 +66,17 @@ public class AdminController {
     }
 
     // ==================== DASHBOARD ====================
-    @GetMapping({"", "/", "/dashboard"})
+    @GetMapping({"", "/"})
+    public String adminRoot() {
+        return "redirect:/admin/dashboard";
+    }
+
+    @GetMapping("/dashboard")
     public String dashboard(Model model) {
         model.addAttribute("monthlyRevenue", reportService.getRevenueByMonth());
         model.addAttribute("topBooks", reportService.getTopSellingBooks());
         model.addAttribute("monthlyOrders", reportService.getThisMonthOrderCount());
+        model.addAttribute("todayOrders", reportService.getTodayOrderCount());
         model.addAttribute("totalSold", reportService.getTotalBooksSold());
 
         long totalBooks = sanPhamRepository.count();
@@ -105,7 +111,7 @@ public class AdminController {
         } else if ("cancelled".equals(status)) {
             orderPage = donHangRepository.findByTrangThaiInOrderByNgayDatDesc(
                     java.util.List.of("DaHuy", "Huy"), pageable);
-        } else if (status != null && !status.isEmpty()) {
+        } else if (status != null && !status.isEmpty() && !"all".equalsIgnoreCase(status)) {
             orderPage = donHangRepository.findByTrangThaiOrderByNgayDatDesc(status, pageable);
         } else {
             orderPage = donHangRepository.findAllByOrderByNgayDatDesc(pageable);
@@ -155,22 +161,50 @@ public class AdminController {
     }
 
     @GetMapping("/orders/{id}")
-    public String orderDetail(@PathVariable Integer id, Model model) {
-        DonHang order = donHangRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã: " + id));
-        model.addAttribute("donHang", order);
-        return "admin/orders-detail";
+    public String orderDetail(@PathVariable Integer id, Model model, RedirectAttributes ra) {
+        return donHangRepository.findById(id)
+                .map(order -> {
+                    model.addAttribute("donHang", order);
+                    return "admin/orders-detail";
+                })
+                .orElseGet(() -> {
+                    ra.addFlashAttribute("errorMessage", "Không tìm thấy đơn hàng với mã: " + id);
+                    return "redirect:/admin/orders";
+                });
     }
 
     @PostMapping("/orders/{id}/status")
     @ResponseBody
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, @RequestParam String status) {
+    public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, 
+                                               @RequestParam String status,
+                                               @RequestParam(value = "reason", required = false) String reason) {
         try {
-            orderService.updateStatus(id, status);
+            orderService.updateStatus(id, status, reason);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/orders/{id}/json")
+    @ResponseBody
+    public ResponseEntity<?> getOrderJson(@PathVariable Integer id) {
+        return donHangRepository.findById(id)
+                .map(dh -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("maDH", dh.getMaDH());
+                    map.put("trangThai", dh.getTrangThai());
+                    map.put("tongTien", dh.getTongTien());
+                    map.put("tienGiam", dh.getTienGiam());
+                    map.put("ngayDat", dh.getNgayDat() != null ? dh.getNgayDat().toString() : "");
+                    map.put("ngayXacNhan", dh.getNgayXacNhan() != null ? dh.getNgayXacNhan().toString() : "");
+                    map.put("ngayHoanThanh", dh.getNgayHoanThanh() != null ? dh.getNgayHoanThanh().toString() : "");
+                    map.put("diaChiGiao", dh.getDiaChiGiao() != null ? dh.getDiaChiGiao() : "");
+                    map.put("soDienThoaiGiao", dh.getSoDienThoaiGiao() != null ? dh.getSoDienThoaiGiao() : "");
+                    map.put("khachHang", dh.getKhachHang() != null ? dh.getKhachHang().getHoTen() : "");
+                    return ResponseEntity.ok(map);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     // ==================== QUẢN LÝ SẢN PHẨM (CRUD) ====================
