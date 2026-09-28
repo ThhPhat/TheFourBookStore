@@ -83,6 +83,14 @@ public class ReportService {
         return dtos;
     }
 
+    public Long getTodayOrderCount() {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = LocalDate.now().plusDays(1).atStartOfDay();
+
+        Long count = donHangRepository.getOrderCountByDateRange(startOfDay, endOfDay);
+        return count != null ? count : 0L;
+    }
+
     public Long getThisMonthOrderCount() {
         LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         LocalDateTime nextMonth = startOfMonth.plusMonths(1);

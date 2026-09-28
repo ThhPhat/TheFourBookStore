@@ -1,44 +1,53 @@
 package vn.bookstore.the4bookstore.repository;
-import java.time.LocalDateTime;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
 import vn.bookstore.the4bookstore.entity.DonHang;
+import vn.bookstore.the4bookstore.entity.KhachHang;
+import vn.bookstore.the4bookstore.entity.KhuyenMai;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface DonHangRepository extends JpaRepository<DonHang, Integer> {
 
-    @Query("SELECT SUM(dh.tongTien) FROM DonHang dh WHERE dh.trangThai = 'DaGiao' AND dh.ngayHoanThanh >= :startDate AND dh.ngayHoanThanh < :endDate")
+    @Query("SELECT COALESCE(SUM(dh.tongTien), 0) FROM DonHang dh WHERE dh.trangThai = 'DaGiao' AND COALESCE(dh.ngayHoanThanh, dh.ngayDat) >= :startDate AND COALESCE(dh.ngayHoanThanh, dh.ngayDat) < :endDate")
     Long getRevenueByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT COUNT(dh) FROM DonHang dh WHERE dh.trangThai = 'DaGiao' AND dh.ngayHoanThanh >= :startDate AND dh.ngayHoanThanh < :endDate")
+    @Query("SELECT COUNT(dh) FROM DonHang dh WHERE dh.trangThai = 'DaGiao' AND COALESCE(dh.ngayHoanThanh, dh.ngayDat) >= :startDate AND COALESCE(dh.ngayHoanThanh, dh.ngayDat) < :endDate")
     Long getOrderCountByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
-    java.util.List<DonHang> findByKhachHangOrderByNgayDatDesc(vn.bookstore.the4bookstore.entity.KhachHang khachHang);
+    List<DonHang> findByKhachHangOrderByNgayDatDesc(KhachHang khachHang);
 
-    org.springframework.data.domain.Page<DonHang> findAllByOrderByNgayDatDesc(org.springframework.data.domain.Pageable pageable);
-    org.springframework.data.domain.Page<DonHang> findByTrangThaiOrderByNgayDatDesc(String trangThai, org.springframework.data.domain.Pageable pageable);
-    org.springframework.data.domain.Page<DonHang> findByTrangThaiInOrderByNgayDatDesc(java.util.List<String> trangThaiList, org.springframework.data.domain.Pageable pageable);
+    Page<DonHang> findAllByOrderByNgayDatDesc(Pageable pageable);
 
-    Long countByKhachHang(vn.bookstore.the4bookstore.entity.KhachHang khachHang);
+    Page<DonHang> findByTrangThaiOrderByNgayDatDesc(String trangThai, Pageable pageable);
 
-    Long countByKhachHangAndTrangThai(vn.bookstore.the4bookstore.entity.KhachHang khachHang, String trangThai);
+    Page<DonHang> findByTrangThaiInOrderByNgayDatDesc(List<String> trangThaiList, Pageable pageable);
+
+    Long countByKhachHang(KhachHang khachHang);
+
+    Long countByKhachHangAndTrangThai(KhachHang khachHang, String trangThai);
     
     Long countByTrangThai(String trangThai);
-    Long countByTrangThaiIn(java.util.List<String> trangThaiList);
+
+    Long countByTrangThaiIn(List<String> trangThaiList);
 
     Long countByNgayDatBetween(LocalDateTime startDate, LocalDateTime endDate);
 
-    java.util.List<DonHang> findByKhuyenMaiOrderByNgayDatDesc(vn.bookstore.the4bookstore.entity.KhuyenMai khuyenMai);
+    List<DonHang> findByKhuyenMaiOrderByNgayDatDesc(KhuyenMai khuyenMai);
 
-    Long countByKhuyenMai(vn.bookstore.the4bookstore.entity.KhuyenMai khuyenMai);
+    Long countByKhuyenMai(KhuyenMai khuyenMai);
 
     @Query("SELECT COALESCE(SUM(dh.tienGiam), 0) FROM DonHang dh WHERE dh.khuyenMai = :km")
-    Long sumTienGiamByKhuyenMai(@Param("km") vn.bookstore.the4bookstore.entity.KhuyenMai km);
+    Long sumTienGiamByKhuyenMai(@Param("km") KhuyenMai km);
 
     @Query("SELECT COALESCE(SUM(dh.tongTien), 0) FROM DonHang dh WHERE dh.khuyenMai = :km")
-    Long sumTongTienByKhuyenMai(@Param("km") vn.bookstore.the4bookstore.entity.KhuyenMai km);
+    Long sumTongTienByKhuyenMai(@Param("km") KhuyenMai km);
 }
+
