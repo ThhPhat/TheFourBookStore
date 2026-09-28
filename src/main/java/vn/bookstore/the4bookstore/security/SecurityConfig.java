@@ -42,7 +42,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "QUANLY")
+                .requestMatchers("/admin", "/admin/**").hasAnyRole("ADMIN", "QUANLY")
                 .requestMatchers("/kho/**").hasAnyRole("ADMIN", "QUANLY", "NHANVIENKHO")
                 .requestMatchers("/ban-hang/**").hasAnyRole("ADMIN", "QUANLY", "NHANVIENBANHANG")
                 .requestMatchers("/khach-hang/**", "/thanh-toan/**").hasAnyRole("KHACHHANG")
@@ -53,6 +53,15 @@ public class SecurityConfig {
                 .requestMatchers("/gio-hang", "/gio-hang/**").permitAll()
                 .requestMatchers("/forgot-password", "/forgot-password/**", "/reset-password", "/reset-password/**", "/resend-otp").permitAll()
                 .anyRequest().permitAll()
+            )
+            .exceptionHandling(ex -> ex
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    if (request.getRequestURI().startsWith("/admin")) {
+                        response.sendRedirect(request.getContextPath() + "/login?adminDenied=true");
+                    } else {
+                        response.sendRedirect(request.getContextPath() + "/");
+                    }
+                })
             )
             .formLogin(form -> form
                 .loginPage("/login")

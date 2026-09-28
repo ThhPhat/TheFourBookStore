@@ -35,7 +35,27 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String loginPage(Authentication authentication) {
+    public String loginPage(@RequestParam(value = "adminDenied", required = false) String adminDenied,
+                            @RequestParam(value = "switch", required = false) String switchAccount,
+                            jakarta.servlet.http.HttpServletRequest request,
+                            jakarta.servlet.http.HttpServletResponse response,
+                            Authentication authentication) {
+        if (adminDenied != null || switchAccount != null) {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            jakarta.servlet.http.HttpSession session = request.getSession(false);
+            if (session != null) {
+                session.invalidate();
+            }
+            org.springframework.http.ResponseCookie deleteCookie = org.springframework.http.ResponseCookie.from("THE4_JWT", "")
+                    .httpOnly(true)
+                    .secure(false)
+                    .path("/")
+                    .maxAge(0)
+                    .build();
+            response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, deleteCookie.toString());
+            return "auth/login";
+        }
+
         if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
             return "redirect:/";
         }
