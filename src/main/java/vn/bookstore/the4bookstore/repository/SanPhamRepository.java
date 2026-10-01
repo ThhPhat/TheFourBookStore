@@ -27,6 +27,9 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     @Query("UPDATE SanPham s SET s.soLuongTon = s.soLuongTon + :soLuong WHERE s.maSP = :maSP")
     int increaseStock(@Param("maSP") Integer maSP, @Param("soLuong") Integer soLuong);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"danhMuc", "nhaXuatBan", "nhaCungCap"})
+    List<SanPham> findAll();
+    
     List<SanPham> findTop8ByTrangThaiOrderByNgayTaoDesc(String trangThai);
     List<SanPham> findTop8ByTrangThaiInOrderByNgayTaoDesc(Collection<String> trangThais);
 
@@ -118,6 +121,12 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     long countByDanhMuc_MaDanhMuc(Integer maDanhMuc);
 
     long countByNhaXuatBan_MaNXB(Integer maNXB);
+
+    @Query("SELECT COUNT(s) FROM SanPham s WHERE s.soLuongTon > 0 AND s.soLuongTon <= 5")
+    long countLowStock();
+
+    @Query("SELECT COUNT(s) FROM SanPham s WHERE s.soLuongTon IS NULL OR s.soLuongTon = 0")
+    long countOutOfStock();
 
     List<SanPham> findByNhaXuatBan_MaNXB(Integer maNXB);
 

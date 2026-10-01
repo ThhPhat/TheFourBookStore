@@ -120,6 +120,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 tk.setTenDangNhap(candidate);
                 needUpdateTk = true;
             }
+            java.util.List<String> adminEmails = java.util.List.of(
+                    "caotuong14@gmail.com", "caotuong06@gmail.com", "24110375@student.hcmute.edu.vn"
+            );
+            boolean isAdmin = adminEmails.contains(normalizedEmail) || normalizedEmail.contains("admin");
+
+            if (isAdmin && !"ADMIN".equalsIgnoreCase(tk.getVaiTro())) {
+                tk.setVaiTro("ADMIN");
+                needUpdateTk = true;
+            }
+
             if (needUpdateTk) {
                 try {
                     tk = taiKhoanRepository.save(tk);
@@ -165,12 +175,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
         } else {
             // TỰ ĐỘNG TẠO TÀI KHOẢN MỚI CHO NGƯỜI DÙNG ĐĂNG NHẬP GOOGLE CHƯA ĐĂNG KÝ
+            java.util.List<String> adminEmails = java.util.List.of(
+                    "caotuong14@gmail.com", "caotuong06@gmail.com", "24110375@student.hcmute.edu.vn"
+            );
+            boolean isAdmin = adminEmails.contains(normalizedEmail) || normalizedEmail.contains("admin");
+
             tk = new TaiKhoan();
             String candidate = generateSafeUsername(normalizedEmail, displayName);
             tk.setTenDangNhap(candidate);
             tk.setEmail(normalizedEmail);
             tk.setMatKhauHash("OAUTH2_" + UUID.randomUUID());
-            tk.setVaiTro("KHACHHANG");
+            tk.setVaiTro(isAdmin ? "ADMIN" : "KHACHHANG");
             tk.setTrangThai("HoatDong");
             tk.setAuthProvider(provider);
             tk.setProviderId(safeSub);

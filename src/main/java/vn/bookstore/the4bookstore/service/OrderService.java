@@ -8,6 +8,8 @@ import vn.bookstore.the4bookstore.entity.DonHang;
 import vn.bookstore.the4bookstore.repository.DonHangRepository;
 import vn.bookstore.the4bookstore.repository.SanPhamRepository;
 
+import java.time.LocalDateTime;
+
 @Service
 public class OrderService {
     @Autowired
@@ -16,18 +18,32 @@ public class OrderService {
     @Autowired
     private SanPhamRepository sanPhamRepository;
 
-    @Transactional
     public void updateStatus(Long id, String status) {
+        updateStatus(id, status, null);
+    }
+
+    @Transactional
+    public void updateStatus(Long id, String status, String reason) {
         DonHang dh = donHangRepository.findById(id.intValue())
             .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + id));
 
         String oldStatus = dh.getTrangThai();
         dh.setTrangThai(status);
 
-        // Nếu trạng thái chuyển sang Đã hủy và trước đó chưa bị hủy thì hoàn lại tồn kho
-        if (("DaHuy".equalsIgnoreCase(status) || "Huy".equalsIgnoreCase(status))
-                && !"DaHuy".equalsIgnoreCase(oldStatus) && !"Huy".equalsIgnoreCase(oldStatus)) {
-            if (dh.getChiTietDonHangs() != null) {
+        if ("DaGiao".equals(status)) {
+            if (dh.getNgayHoanThanh() == null) {
+                dh.setNgayHoanThanh(LocalDateTime.now());
+            }
+        } else if ("DaXacNhan".equals(status)) {
+            if (dh.getNgayXacNhan() == null) {
+                dh.setNgayXacNhan(LocalDateTime.now());
+            }
+        } else if ("DaHuy".equals(status) || "Huy".equals(status)) {
+            if (reason != null && !reason.isBlank()) {
+                dh.setLyDoHuy(reason);
+            }
+            // Hoàn lại số lượng tồn kho nếu đơn chuyển từ trạng thái chưa hủy sang hủy
+            if (!"DaHuy".equalsIgnoreCase(oldStatus) && !"Huy".equalsIgnoreCase(oldStatus) && dh.getChiTietDonHangs() != null) {
                 for (ChiTietDonHang ct : dh.getChiTietDonHangs()) {
                     if (ct.getSanPham() != null && ct.getSoLuong() != null) {
                         sanPhamRepository.increaseStock(ct.getSanPham().getMaSP(), ct.getSoLuong());
@@ -35,7 +51,7 @@ public class OrderService {
                 }
             }
         }
-
         donHangRepository.save(dh);
     }
 }
+

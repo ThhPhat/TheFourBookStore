@@ -33,6 +33,19 @@
             </h1>
 
             <!-- Feedback Alerts -->
+            <div th:if="${param.adminDenied}" class="mb-4 p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-500/60 text-amber-950 text-xs sm:text-sm font-semibold flex flex-col gap-2 shadow-md animate-in fade-in duration-300">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px] text-amber-600 shrink-0">lock</span>
+                    <span>Tài khoản hiện tại không có quyền truy cập Quản trị. Vui lòng đăng nhập với tài khoản Admin:</span>
+                </div>
+                <div class="flex items-center justify-between bg-white/90 p-2 rounded-xl border border-amber-200">
+                    <span class="font-mono text-xs text-amber-900">User: <b>admin</b> | Pass: <b>123456</b></span>
+                    <button type="button" onclick="fillAdmin()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer">
+                        Điền nhanh
+                    </button>
+                </div>
+            </div>
+
             <div th:if="${param.error}" class="mb-4 px-4 py-3 rounded-2xl bg-white/95 border-2 border-error/50 text-error text-xs sm:text-sm font-bold flex items-center gap-2.5 shadow-md animate-in fade-in duration-300">
                 <span class="material-symbols-outlined text-[20px]">error</span>
                 <span>Sai tên đăng nhập hoặc mật khẩu!</span>
@@ -124,16 +137,29 @@
             </div>
 
             <!-- Back to Home Floating Link -->
-            <div class="text-center pt-2.5">
+            <div class="text-center pt-2.5 flex items-center justify-center gap-4">
                 <a th:href="@{/}" class="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-800 hover:text-primary font-bold transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
                     <span class="material-symbols-outlined text-[16px]">arrow_back</span>
                     <span>Quay về trang chủ</span>
                 </a>
+                <span class="text-slate-400 text-xs">|</span>
+                <button type="button" onclick="fillAdmin()" class="inline-flex items-center gap-1 text-xs text-slate-700 hover:text-primary font-semibold transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px] text-amber-700">admin_panel_settings</span>
+                    <span>Tài khoản Admin</span>
+                </button>
             </div>
 
         </div>
 
     </main>
 
+    <script>
+        function fillAdmin() {
+            const u = document.getElementById('username');
+            const p = document.getElementById('password');
+            if (u) u.value = 'admin';
+            if (p) p.value = '123456';
+        }
+    </script>
 </body>
 </html>

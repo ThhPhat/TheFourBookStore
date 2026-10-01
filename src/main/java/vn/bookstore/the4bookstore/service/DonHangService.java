@@ -8,6 +8,7 @@ import vn.bookstore.the4bookstore.repository.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class DonHangService {
@@ -17,47 +18,43 @@ public class DonHangService {
     private final SanPhamRepository sanPhamRepository;
     private final ThanhToanRepository thanhToanRepository;
     private final GioHangService gioHangService;
+    private final KhuyenMaiRepository khuyenMaiRepository;
 
     public DonHangService(DonHangRepository donHangRepository,
                           ChiTietDonHangRepository chiTietDonHangRepository,
                           SanPhamRepository sanPhamRepository,
                           ThanhToanRepository thanhToanRepository,
-                          GioHangService gioHangService) {
+                          GioHangService gioHangService,
+                          KhuyenMaiRepository khuyenMaiRepository) {
         this.donHangRepository = donHangRepository;
         this.chiTietDonHangRepository = chiTietDonHangRepository;
         this.sanPhamRepository = sanPhamRepository;
         this.thanhToanRepository = thanhToanRepository;
         this.gioHangService = gioHangService;
+        this.khuyenMaiRepository = khuyenMaiRepository;
     }
 
     /**
-     * Tạo đơn hàng từ giỏ hàng của khách hàng.
-     * - Validate giỏ hàng không rỗng
-     * - Validate tồn kho đủ
-     * - Tạo DON_HANG và CHI_TIET_DON_HANG
-     * - Trừ số lượng tồn kho
-     * - Tạo bản ghi THANH_TOAN
-     * - Xóa giỏ hàng
-     */
-    /**
-     * Tạo đơn hàng từ giỏ hàng của khách hàng (có thể chọn lọc danh sách sản phẩm cần mua).
-     * - selectedProductIds: danh sách mã sản phẩm được tích chọn mua (nếu null/rỗng thì mua toàn bộ giỏ)
-     * - Validate tồn kho đủ cho các món được chọn
-     * - Tạo DON_HANG và CHI_TIET_DON_HANG cho các món được chọn
-     * - Trừ số lượng tồn kho
-     * - Tạo bản ghi THANH_TOAN
-     * - Xóa các món được chọn khỏi giỏ hàng
+     * Tạo đơn hàng từ giỏ hàng của khách hàng (có thể chọn lọc danh sách sản phẩm cần mua và áp mã giảm giá).
      */
     @Transactional
     public DonHang createOrder(KhachHang khachHang, String diaChiGiao,
                                String soDienThoaiGiao, String phuongThuc, String ghiChu) {
-        return createOrder(khachHang, diaChiGiao, soDienThoaiGiao, phuongThuc, ghiChu, null);
+        return createOrder(khachHang, diaChiGiao, soDienThoaiGiao, phuongThuc, ghiChu, null, null);
     }
 
     @Transactional
     public DonHang createOrder(KhachHang khachHang, String diaChiGiao,
                                String soDienThoaiGiao, String phuongThuc, String ghiChu,
                                List<Integer> selectedProductIds) {
+        return createOrder(khachHang, diaChiGiao, soDienThoaiGiao, phuongThuc, ghiChu, selectedProductIds, null);
+    }
+
+    @Transactional
+    public DonHang createOrder(KhachHang khachHang, String diaChiGiao,
+                               String soDienThoaiGiao, String phuongThuc, String ghiChu,
+                               List<Integer> selectedProductIds,
+                               String maVoucher) {
 
         // 1. Lấy giỏ hàng
         List<ChiTietGioHang> allCartItems = gioHangService.getCartItems(khachHang);
@@ -129,8 +126,32 @@ public class DonHangService {
             tongTien += sp.getGiaBan() * ctGH.getSoLuong();
         }
 
-        // 6. Cập nhật tổng tiền
-        donHang.setTongTien(tongTien);
+        // 6. Xử lý giảm giá từ mã khuyến mãi (nếu có)
+        int tienGiam = 0;
+        KhuyenMai khuyenMai = null;
+        if (maVoucher != null && !maVoucher.isBlank()) {
+            Optional<KhuyenMai> kmOpt = khuyenMaiRepository.findByMaCode(maVoucher.trim());
+            if (kmOpt.isPresent() && "HoatDong".equalsIgnoreCase(kmOpt.get().getTrangThai())) {
+                khuyenMai = kmOpt.get();
+                if ("PhanTram".equalsIgnoreCase(khuyenMai.getLoaiGiam())) {
+                    tienGiam = (int) Math.round(tongTien * (khuyenMai.getGiaTriGiam() / 100.0));
+                    if (khuyenMai.getGiamToiDa() != null && tienGiam > khuyenMai.getGiamToiDa()) {
+                        tienGiam = khuyenMai.getGiamToiDa();
+                    }
+                } else {
+                    tienGiam = khuyenMai.getGiaTriGiam();
+                }
+                khuyenMai.setSoLuongDaDung(khuyenMai.getSoLuongDaDung() != null ? khuyenMai.getSoLuongDaDung() + 1 : 1);
+                khuyenMaiRepository.save(khuyenMai);
+            } else if ("THE4BOOK15".equalsIgnoreCase(maVoucher.trim()) || "BOOK15".equalsIgnoreCase(maVoucher.trim()) || "SALE15".equalsIgnoreCase(maVoucher.trim())) {
+                tienGiam = (int) Math.round(tongTien * 0.15);
+            }
+        }
+
+        int finalTotal = Math.max(0, tongTien - tienGiam);
+        donHang.setTongTien(finalTotal);
+        donHang.setTienGiam(tienGiam);
+        donHang.setKhuyenMai(khuyenMai);
         donHang.setChiTietDonHangs(chiTietList);
         donHang = donHangRepository.save(donHang);
 
@@ -139,7 +160,7 @@ public class DonHangService {
         thanhToan.setDonHang(donHang);
         thanhToan.setPhuongThuc(phuongThuc != null ? phuongThuc : "COD");
         thanhToan.setTrangThai("ChoThanhToan");
-        thanhToan.setSoTien(tongTien);
+        thanhToan.setSoTien(finalTotal);
         thanhToan.setNoiDung("Thanh toán đơn hàng #" + donHang.getMaDH());
         thanhToanRepository.save(thanhToan);
 

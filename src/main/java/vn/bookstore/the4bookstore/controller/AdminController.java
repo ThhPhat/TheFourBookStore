@@ -66,17 +66,22 @@ public class AdminController {
     }
 
     // ==================== DASHBOARD ====================
-    @GetMapping({"", "/", "/dashboard"})
+    @GetMapping({"", "/"})
+    public String adminRoot() {
+        return "redirect:/admin/dashboard";
+    }
+
+    @GetMapping("/dashboard")
     public String dashboard(Model model) {
         model.addAttribute("monthlyRevenue", reportService.getRevenueByMonth());
         model.addAttribute("topBooks", reportService.getTopSellingBooks());
+        model.addAttribute("monthlyOrders", reportService.getThisMonthOrderCount());
         model.addAttribute("todayOrders", reportService.getTodayOrderCount());
         model.addAttribute("totalSold", reportService.getTotalBooksSold());
 
-        List<SanPham> books = sanPhamRepository.findAll();
-        long totalBooks = books.size();
-        long lowStock = books.stream().filter(b -> b.getSoLuongTon() != null && b.getSoLuongTon() > 0 && b.getSoLuongTon() <= 5).count();
-        long outOfStock = books.stream().filter(b -> b.getSoLuongTon() == null || b.getSoLuongTon() == 0).count();
+        long totalBooks = sanPhamRepository.count();
+        long lowStock = sanPhamRepository.countLowStock();
+        long outOfStock = sanPhamRepository.countOutOfStock();
 
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("'Ngày' dd 'tháng' MM, yyyy");
         String formattedDate = LocalDate.now().format(dtf);
@@ -91,27 +96,115 @@ public class AdminController {
 
     // ==================== ĐƠN HÀNG ====================
     @GetMapping("/orders")
-    public String orders(@RequestParam(required = false) String status, Model model) {
-        List<DonHang> orders;
-        if (status != null && !status.isEmpty()) {
-            orders = donHangRepository.findAll().stream()
-                    .filter(dh -> status.equals(dh.getTrangThai())).toList();
+    public String orders(@RequestParam(required = false) String status, 
+                         @RequestParam(defaultValue = "1") int page,
+                         Model model) {
+        int pageSize = 10;
+        if (page < 1) page = 1;
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page - 1, pageSize);
+        org.springframework.data.domain.Page<DonHang> orderPage;
+        
+        if ("pending".equals(status)) {
+            orderPage = donHangRepository.findByTrangThaiInOrderByNgayDatDesc(
+                    java.util.List.of("ChoXuLy", "ChoDuyet"), pageable);
+        } else if ("cancelled".equals(status)) {
+            orderPage = donHangRepository.findByTrangThaiInOrderByNgayDatDesc(
+                    java.util.List.of("DaHuy", "Huy"), pageable);
+        } else if (status != null && !status.isEmpty() && !"all".equalsIgnoreCase(status)) {
+            orderPage = donHangRepository.findByTrangThaiOrderByNgayDatDesc(status, pageable);
         } else {
-            orders = donHangRepository.findAll();
+            orderPage = donHangRepository.findAllByOrderByNgayDatDesc(pageable);
         }
-        model.addAttribute("orders", orders);
+
+        long allOrdersCount = donHangRepository.count();
+        long pendingCount = donHangRepository.countByTrangThaiIn(java.util.List.of("ChoXuLy", "ChoDuyet"));
+        long shippingCount = donHangRepository.countByTrangThai("DangGiao");
+        long successCount = donHangRepository.countByTrangThai("DaGiao");
+        long cancelledCount = donHangRepository.countByTrangThaiIn(java.util.List.of("DaHuy", "Huy"));
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
+        java.time.LocalDateTime endOfMonth = startOfMonth.plusMonths(1);
+        
+        long monthlyOrders = donHangRepository.countByNgayDatBetween(startOfMonth, endOfMonth);
+        Long revenueObj = donHangRepository.getRevenueByDateRange(startOfMonth, endOfMonth);
+        long monthlyRevenue = revenueObj != null ? revenueObj : 0L;
+
+        int totalPages = orderPage.getTotalPages();
+        long totalElements = orderPage.getTotalElements();
+        if (page > totalPages && totalPages > 0) {
+            return "redirect:/admin/orders?page=" + totalPages + (status != null ? "&status=" + status : "");
+        }
+        
+        long start = totalElements > 0 ? (page - 1) * pageSize + 1 : 0;
+        long end = Math.min(page * pageSize, totalElements);
+
+        model.addAttribute("allOrdersCount", allOrdersCount);
+        model.addAttribute("pendingCount", pendingCount);
+        model.addAttribute("shippingCount", shippingCount);
+        model.addAttribute("successCount", successCount);
+        model.addAttribute("cancelledCount", cancelledCount);
+        model.addAttribute("monthlyOrders", monthlyOrders);
+        model.addAttribute("monthlyRevenue", monthlyRevenue);
+        
+        model.addAttribute("orders", orderPage.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("totalElements", totalElements);
+        model.addAttribute("pageSize", pageSize);
+        model.addAttribute("startCount", start);
+        model.addAttribute("endCount", end);
+        model.addAttribute("currentStatus", status != null ? status : "");
+        
         return "admin/orders";
+    }
+
+    @GetMapping("/orders/{id}")
+    public String orderDetail(@PathVariable Integer id, Model model, RedirectAttributes ra) {
+        return donHangRepository.findById(id)
+                .map(order -> {
+                    model.addAttribute("donHang", order);
+                    return "admin/orders-detail";
+                })
+                .orElseGet(() -> {
+                    ra.addFlashAttribute("errorMessage", "Không tìm thấy đơn hàng với mã: " + id);
+                    return "redirect:/admin/orders";
+                });
     }
 
     @PostMapping("/orders/{id}/status")
     @ResponseBody
-    public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, @RequestParam String status) {
+    public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, 
+                                               @RequestParam String status,
+                                               @RequestParam(value = "reason", required = false) String reason) {
         try {
-            orderService.updateStatus(id, status);
+            orderService.updateStatus(id, status, reason);
             return ResponseEntity.ok(Map.of("success", true));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/orders/{id}/json")
+    @ResponseBody
+    public ResponseEntity<?> getOrderJson(@PathVariable Integer id) {
+        return donHangRepository.findById(id)
+                .map(dh -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("maDH", dh.getMaDH());
+                    map.put("trangThai", dh.getTrangThai());
+                    map.put("tongTien", dh.getTongTien());
+                    map.put("tienGiam", dh.getTienGiam());
+                    map.put("ngayDat", dh.getNgayDat() != null ? dh.getNgayDat().toString() : "");
+                    map.put("ngayXacNhan", dh.getNgayXacNhan() != null ? dh.getNgayXacNhan().toString() : "");
+                    map.put("ngayHoanThanh", dh.getNgayHoanThanh() != null ? dh.getNgayHoanThanh().toString() : "");
+                    map.put("diaChiGiao", dh.getDiaChiGiao() != null ? dh.getDiaChiGiao() : "");
+                    map.put("soDienThoaiGiao", dh.getSoDienThoaiGiao() != null ? dh.getSoDienThoaiGiao() : "");
+                    map.put("khachHang", dh.getKhachHang() != null ? dh.getKhachHang().getHoTen() : "");
+                    return ResponseEntity.ok(map);
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     // ==================== QUẢN LÝ SẢN PHẨM (CRUD) ====================
@@ -123,11 +216,14 @@ public class AdminController {
             @RequestParam(required = false) String q,
             Model model) {
 
-        List<SanPham> allProducts = sanPhamRepository.findAll();
+        long totalBooksCount = sanPhamRepository.count();
+        long lowStock = sanPhamRepository.countLowStock();
+        long outOfStock = sanPhamRepository.countOutOfStock();
+        
         List<DanhMuc> categories = danhMucRepository.findAll();
 
-        long lowStock = allProducts.stream().filter(b -> b.getSoLuongTon() != null && b.getSoLuongTon() > 0 && b.getSoLuongTon() <= 5).count();
-        long outOfStock = allProducts.stream().filter(b -> b.getSoLuongTon() == null || b.getSoLuongTon() == 0).count();
+        // Still retrieving all to apply Java-side filters, but with optimized graph fetch.
+        List<SanPham> allProducts = sanPhamRepository.findAll();
 
         List<SanPham> filtered = allProducts.stream()
                 .filter(p -> loaiSP == null || loaiSP.isBlank() || loaiSP.equalsIgnoreCase("all") || loaiSP.equalsIgnoreCase(p.getLoaiSP()))
@@ -147,7 +243,7 @@ public class AdminController {
                 .toList();
 
         model.addAttribute("books", filtered);
-        model.addAttribute("totalBooks", allProducts.size());
+        model.addAttribute("totalBooks", totalBooksCount);
         model.addAttribute("categories", categories);
         model.addAttribute("authors", tacGiaRepository.findAll());
         model.addAttribute("publishers", nhaXuatBanRepository.findAll());

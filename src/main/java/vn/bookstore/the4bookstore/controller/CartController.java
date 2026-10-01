@@ -26,17 +26,20 @@ public class CartController {
     private final KhachHangRepository khachHangRepository;
     private final TaiKhoanRepository taiKhoanRepository;
     private final SanPhamRepository sanPhamRepository;
+    private final KhuyenMaiRepository khuyenMaiRepository;
 
     public CartController(GioHangService gioHangService,
                           DonHangService donHangService,
                           KhachHangRepository khachHangRepository,
                           TaiKhoanRepository taiKhoanRepository,
-                          SanPhamRepository sanPhamRepository) {
+                          SanPhamRepository sanPhamRepository,
+                          KhuyenMaiRepository khuyenMaiRepository) {
         this.gioHangService = gioHangService;
         this.donHangService = donHangService;
         this.khachHangRepository = khachHangRepository;
         this.taiKhoanRepository = taiKhoanRepository;
         this.sanPhamRepository = sanPhamRepository;
+        this.khuyenMaiRepository = khuyenMaiRepository;
     }
 
     // ==================== Helper: Lấy TaiKhoan từ Authentication ====================
@@ -242,6 +245,7 @@ public class CartController {
                              @RequestParam(value = "phuongThuc", defaultValue = "COD") String phuongThuc,
                              @RequestParam(value = "ghiChu", required = false) String ghiChu,
                              @RequestParam(value = "selectedProductIds", required = false) List<Integer> selectedProductIds,
+                             @RequestParam(value = "maVoucher", required = false) String maVoucher,
                              Authentication authentication,
                              RedirectAttributes redirectAttributes) {
         KhachHang kh = getCurrentKhachHang(authentication);
@@ -250,7 +254,7 @@ public class CartController {
         }
 
         try {
-            DonHang donHang = donHangService.createOrder(kh, diaChiGiao, soDienThoaiGiao, phuongThuc, ghiChu, selectedProductIds);
+            DonHang donHang = donHangService.createOrder(kh, diaChiGiao, soDienThoaiGiao, phuongThuc, ghiChu, selectedProductIds, maVoucher);
             redirectAttributes.addFlashAttribute("orderSuccess", true);
             redirectAttributes.addFlashAttribute("maDH", donHang.getMaDH());
             redirectAttributes.addFlashAttribute("successMessage",
@@ -260,6 +264,89 @@ public class CartController {
             redirectAttributes.addFlashAttribute("errorMessage", "Lỗi đặt hàng: " + e.getMessage());
             return "redirect:/gio-hang";
         }
+    }
+
+    // ==================== API Kiểm Tra Mã Giảm Giá ====================
+    @PostMapping("/api/gio-hang/kiem-tra-voucher")
+    @ResponseBody
+    public Map<String, Object> apiValidateVoucher(@RequestParam("code") String code,
+                                                  @RequestParam(value = "subtotal", defaultValue = "0") Integer subtotal) {
+        Map<String, Object> result = new HashMap<>();
+        if (code == null || code.trim().isEmpty()) {
+            result.put("valid", false);
+            result.put("message", "Vui lòng nhập mã giảm giá");
+            return result;
+        }
+
+        String cleanCode = code.trim().toUpperCase();
+
+        // 1. Kiểm tra trong Database KHUYEN_MAI
+        Optional<KhuyenMai> kmOpt = khuyenMaiRepository.findByMaCode(cleanCode);
+        if (kmOpt.isPresent()) {
+            KhuyenMai km = kmOpt.get();
+            if (!"HoatDong".equalsIgnoreCase(km.getTrangThai())) {
+                result.put("valid", false);
+                result.put("message", "Mã giảm giá đã hết hạn hoặc tạm ngưng sử dụng");
+                return result;
+            }
+            if (km.getNgayBatDau() != null && LocalDateTime.now().isBefore(km.getNgayBatDau())) {
+                result.put("valid", false);
+                result.put("message", "Mã giảm giá chưa đến ngày áp dụng");
+                return result;
+            }
+            if (km.getNgayKetThuc() != null && LocalDateTime.now().isAfter(km.getNgayKetThuc())) {
+                result.put("valid", false);
+                result.put("message", "Mã giảm giá đã hết hạn sử dụng");
+                return result;
+            }
+            if (km.getSoLuongToiDa() != null && km.getSoLuongDaDung() != null && km.getSoLuongDaDung() >= km.getSoLuongToiDa()) {
+                result.put("valid", false);
+                result.put("message", "Mã giảm giá đã hết lượt sử dụng");
+                return result;
+            }
+            if (km.getDonToiThieu() != null && subtotal < km.getDonToiThieu()) {
+                result.put("valid", false);
+                result.put("message", "Đơn hàng chưa đạt mức tối thiểu " + String.format("%,d đ", km.getDonToiThieu()));
+                return result;
+            }
+
+            int discount = 0;
+            if ("PhanTram".equalsIgnoreCase(km.getLoaiGiam())) {
+                discount = (int) Math.round(subtotal * (km.getGiaTriGiam() / 100.0));
+                if (km.getGiamToiDa() != null && discount > km.getGiamToiDa()) {
+                    discount = km.getGiamToiDa();
+                }
+            } else {
+                discount = km.getGiaTriGiam();
+            }
+
+            result.put("valid", true);
+            result.put("code", cleanCode);
+            result.put("discountAmount", discount);
+            result.put("loaiGiam", km.getLoaiGiam());
+            result.put("giaTriGiam", km.getGiaTriGiam());
+            result.put("tenKM", km.getTenKM());
+            result.put("message", "Áp dụng thành công mã [" + cleanCode + "] - " + km.getTenKM());
+            return result;
+        }
+
+        // 2. Dự phòng các mã mặc định
+        if ("THE4BOOK15".equals(cleanCode) || "BOOK15".equals(cleanCode) || "SALE15".equals(cleanCode)) {
+            int discount = (int) Math.round(subtotal * 0.15);
+            result.put("valid", true);
+            result.put("code", cleanCode);
+            result.put("discountAmount", discount);
+            result.put("loaiGiam", "PhanTram");
+            result.put("giaTriGiam", 15);
+            result.put("tenKM", "Ưu đãi độc quyền 15%");
+            result.put("message", "Áp dụng thành công mã [" + cleanCode + "] giảm 15% cho các sản phẩm đã chọn!");
+            return result;
+        }
+
+        // Nếu không khớp mã nào
+        result.put("valid", false);
+        result.put("message", "Sai mã giảm giá hoặc mã không tồn tại!");
+        return result;
     }
 
     // ==================== REST API Endpoints (cho AJAX) ====================
