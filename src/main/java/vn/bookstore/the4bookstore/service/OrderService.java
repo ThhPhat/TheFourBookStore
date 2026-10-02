@@ -1,8 +1,10 @@
 package vn.bookstore.the4bookstore.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.bookstore.the4bookstore.dto.OrderNotificationDTO;
 import vn.bookstore.the4bookstore.entity.ChiTietDonHang;
 import vn.bookstore.the4bookstore.entity.DonHang;
 import vn.bookstore.the4bookstore.repository.DonHangRepository;
@@ -17,6 +19,9 @@ public class OrderService {
 
     @Autowired
     private SanPhamRepository sanPhamRepository;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     public void updateStatus(Long id, String status) {
         updateStatus(id, status, null);
@@ -52,6 +57,35 @@ public class OrderService {
             }
         }
         donHangRepository.save(dh);
+
+        // Gửi thông báo WebSocket cập nhật trạng thái đơn hàng (cho Admin & Client)
+        try {
+            String statusText = switch (status) {
+                case "DaXacNhan" -> "Đã được xác nhận";
+                case "DangGiao" -> "Đang được giao đến bạn";
+                case "DaGiao" -> "Đã giao hàng thành công";
+                case "DaHuy", "Huy" -> "Đã bị hủy";
+                default -> status;
+            };
+
+            OrderNotificationDTO noti = OrderNotificationDTO.builder()
+                    .maDH(dh.getMaDH())
+                    .tenKhachHang(dh.getKhachHang() != null ? dh.getKhachHang().getHoTen() : "Khách hàng")
+                    .soDienThoai(dh.getSoDienThoaiGiao())
+                    .diaChiGiao(dh.getDiaChiGiao())
+                    .tongTien(dh.getTongTien())
+                    .trangThai(dh.getTrangThai())
+                    .ngayDat(dh.getNgayDat())
+                    .message("Đơn hàng #" + dh.getMaDH() + " " + statusText)
+                    .build();
+
+            // Broadcast tới kênh chung admin và kênh riêng của khách hàng
+            messagingTemplate.convertAndSend("/topic/admin/orders", noti);
+            if (dh.getKhachHang() != null && dh.getKhachHang().getMaKH() != null) {
+                messagingTemplate.convertAndSend("/topic/user/" + dh.getKhachHang().getMaKH() + "/orders", noti);
+            }
+        } catch (Exception ignored) {
+        }
     }
 }
 

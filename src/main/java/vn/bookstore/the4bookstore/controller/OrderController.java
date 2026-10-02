@@ -1,5 +1,6 @@
 package vn.bookstore.the4bookstore.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -15,7 +16,9 @@ import vn.bookstore.the4bookstore.security.CustomUserDetails;
 import vn.bookstore.the4bookstore.service.DonHangService;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Controller
@@ -177,5 +180,37 @@ public class OrderController {
         }
 
         return "redirect:/don-hang/" + id;
+    }
+
+    // ==================== API Lấy thông báo của người dùng ====================
+    @GetMapping("/api/thong-bao")
+    @ResponseBody
+    public ResponseEntity<?> getClientNotifications(Authentication authentication) {
+        KhachHang kh = getCurrentKhachHang(authentication);
+        if (kh == null) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        List<DonHang> orders = donHangRepository.findByKhachHangOrderByNgayDatDesc(kh);
+        List<Map<String, Object>> notifs = orders.stream().limit(8).map(dh -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("maDH", dh.getMaDH());
+            map.put("tongTien", dh.getTongTien());
+            map.put("trangThai", dh.getTrangThai());
+            map.put("ngayDat", dh.getNgayDat() != null ? dh.getNgayDat().toString() : "");
+            
+            String statusDesc = switch (dh.getTrangThai()) {
+                case "ChoXuLy" -> "Đơn hàng đang chờ xử lý";
+                case "DaXacNhan" -> "Đã được người bán xác nhận";
+                case "DangGiao" -> "Đang được vận chuyển đến bạn";
+                case "DaGiao" -> "Đã giao hàng thành công";
+                case "DaHuy", "Huy" -> "Đã bị hủy";
+                default -> "Cập nhật trạng thái đơn";
+            };
+            map.put("moTa", statusDesc);
+            return map;
+        }).toList();
+
+        return ResponseEntity.ok(notifs);
     }
 }

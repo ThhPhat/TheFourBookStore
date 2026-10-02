@@ -305,10 +305,39 @@
 
         <!-- Quick Controls -->
         <div class="flex items-center gap-space-md">
-            <button aria-label="Thông báo" class="relative p-2 text-on-surface-variant hover:text-on-surface rounded-xl hover:bg-surface-container transition-colors" type="button">
-                <span class="material-symbols-outlined text-[22px]">notifications</span>
-                <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full ring-2 ring-surface-container-lowest"></span>
-            </button>
+            <!-- Interactive Notification Dropdown -->
+            <div class="relative">
+                <button id="ws-notif-btn" onclick="toggleNotifDropdown(event)" aria-label="Thông báo" class="relative p-2 text-on-surface-variant hover:text-on-surface rounded-xl hover:bg-surface-container transition-colors cursor-pointer" type="button">
+                    <span class="material-symbols-outlined text-[22px]">notifications</span>
+                    <span id="ws-badge" class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-error text-white text-[10px] font-bold rounded-full px-1 shadow-sm">0</span>
+                </button>
+
+                <!-- Dropdown Menu -->
+                <div id="notif-dropdown" class="hidden absolute right-0 top-full mt-2 w-80 sm:w-96 bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-container z-50 overflow-hidden transform transition-all duration-200">
+                    <div class="p-3.5 border-b border-surface-container/60 flex items-center justify-between bg-surface-container-low/50">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-xs uppercase tracking-wider text-on-surface">Thông Báo Hệ Thống</span>
+                            <span id="notif-count-badge" class="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">0</span>
+                        </div>
+                        <button type="button" onclick="clearNotifBadge()" class="text-[11px] text-primary hover:underline font-semibold">Đánh dấu đã đọc</button>
+                    </div>
+
+                    <!-- Notification List -->
+                    <div id="notif-list" class="max-h-80 overflow-y-auto divide-y divide-surface-container/40">
+                        <div class="p-6 text-center text-xs text-on-surface-variant">
+                            <span class="material-symbols-outlined text-3xl mb-1 text-on-surface-variant/50">notifications_paused</span>
+                            <p>Đang tải thông báo...</p>
+                        </div>
+                    </div>
+
+                    <div class="p-2.5 border-t border-surface-container/60 text-center bg-surface-container-low/30">
+                        <a href="/admin/orders" class="text-xs font-semibold text-primary hover:underline flex items-center justify-center gap-1">
+                            <span>Xem tất cả đơn hàng</span>
+                            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
 
             <div class="h-5 w-[1px] bg-surface-container"></div>
 
@@ -320,7 +349,197 @@
                 </div>
             </div>
         </div>
-    </header>
 
+        <!-- TOAST NOTIFICATION CONTAINER CHO WEBSOCKET REAL-TIME -->
+        <div id="ws-toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none"></div>
+
+        <!-- SockJS & STOMP JS SCRIPTS -->
+        <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+        <script>
+            let unreadNotifCount = 0;
+            const recentNotifs = [];
+
+            function toggleNotifDropdown(event) {
+                if (event) event.stopPropagation();
+                const dropdown = document.getElementById('notif-dropdown');
+                if (dropdown) {
+                    dropdown.classList.toggle('hidden');
+                    if (!dropdown.classList.contains('hidden')) {
+                        clearNotifBadge();
+                    }
+                }
+            }
+
+            function clearNotifBadge() {
+                unreadNotifCount = 0;
+                const badge = document.getElementById('ws-badge');
+                const countBadge = document.getElementById('notif-count-badge');
+                if (badge) badge.classList.add('hidden');
+                if (countBadge) countBadge.textContent = '0';
+
+                if (recentNotifs.length > 0) {
+                    localStorage.setItem('adminLastReadDh', recentNotifs[0].maDH);
+                }
+            }
+
+            document.addEventListener('click', function (e) {
+                const dropdown = document.getElementById('notif-dropdown');
+                const btn = document.getElementById('ws-notif-btn');
+                if (dropdown && !dropdown.classList.contains('hidden')) {
+                    if (!dropdown.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                        dropdown.classList.add('hidden');
+                    }
+                }
+            });
+
+            function renderNotifList() {
+                const listEl = document.getElementById('notif-list');
+                if (!listEl) return;
+
+                if (recentNotifs.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="p-6 text-center text-xs text-on-surface-variant">
+                            <span class="material-symbols-outlined text-3xl mb-1 text-on-surface-variant/40">mark_email_read</span>
+                            <p>Chưa có thông báo nào mới</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                listEl.innerHTML = recentNotifs.map(n => {
+                    const formatVND = n.tongTien ? new Intl.NumberFormat('vi-VN').format(n.tongTien) + ' ₫' : '';
+                    return `
+                        <a href="/admin/orders/${n.maDH}" class="flex items-start gap-3 p-3 hover:bg-surface-container transition-colors text-left block group">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-xs text-on-surface group-hover:text-primary transition-colors">Đơn hàng #${n.maDH}</span>
+                                    <span class="text-[10px] text-on-surface-variant">${n.trangThai || 'ChoXuLy'}</span>
+                                </div>
+                                <p class="text-xs text-on-surface font-medium truncate mt-0.5">${n.tenKhachHang} - <span class="text-emerald-600 font-bold">${formatVND}</span></p>
+                                <p class="text-[10px] text-on-surface-variant mt-0.5">${n.ngayDat || 'Vừa xong'}</p>
+                            </div>
+                        </a>
+                    `;
+                }).join('');
+            }
+
+            // Fetch initial recent notifications on load
+            fetch('/admin/api/notifications')
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        recentNotifs.push(...data);
+                        renderNotifList();
+
+                        const lastRead = localStorage.getItem('adminLastReadDh');
+                        let unread = 0;
+                        if (lastRead) {
+                            for (const n of data) {
+                                if (n.maDH && n.maDH.toString() === lastRead) break;
+                                unread++;
+                            }
+                        } else {
+                            unread = data.length;
+                        }
+
+                        if (unread > 0) {
+                            unreadNotifCount = unread;
+                            const badge = document.getElementById('ws-badge');
+                            const countBadge = document.getElementById('notif-count-badge');
+                            if (badge) {
+                                badge.classList.remove('hidden');
+                                badge.textContent = unreadNotifCount;
+                            }
+                            if (countBadge) countBadge.textContent = unreadNotifCount;
+                        }
+                    }
+                })
+                .catch(() => renderNotifList());
+
+            document.addEventListener("DOMContentLoaded", function () {
+                try {
+                    const socket = new SockJS('/ws');
+                    const stompClient = Stomp.over(socket);
+                    stompClient.debug = null;
+
+                    stompClient.connect({}, function (frame) {
+                        stompClient.subscribe('/topic/admin/orders', function (message) {
+                            try {
+                                const noti = JSON.parse(message.body);
+                                unreadNotifCount++;
+                                recentNotifs.unshift(noti);
+                                if (recentNotifs.length > 20) recentNotifs.pop();
+
+                                renderNotifList();
+                                showOrderToast(noti);
+
+                                const badge = document.getElementById('ws-badge');
+                                const countBadge = document.getElementById('notif-count-badge');
+                                if (badge) {
+                                    badge.classList.remove('hidden');
+                                    badge.textContent = unreadNotifCount;
+                                }
+                                if (countBadge) countBadge.textContent = unreadNotifCount;
+                            } catch (e) {
+                                console.error("Lỗi đọc gói tin WebSocket:", e);
+                            }
+                        });
+                    }, function (err) {
+                        console.warn("WebSocket kết nối lại sau 5s...", err);
+                    });
+
+                    function showOrderToast(noti) {
+                        const container = document.getElementById('ws-toast-container');
+                        if (!container) return;
+
+                        const toast = document.createElement('div');
+                        toast.className = 'pointer-events-auto bg-surface-container-lowest text-on-surface border border-emerald-500/40 shadow-2xl rounded-2xl p-4 flex items-start gap-3.5 transform transition-all duration-300 translate-y-4 opacity-0';
+                        
+                        const formatVND = noti.tongTien ? new Intl.NumberFormat('vi-VN').format(noti.tongTien) + ' ₫' : '';
+
+                        toast.innerHTML = `
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <span class="material-symbols-outlined text-[24px]">shopping_bag</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-sm text-emerald-700">Đơn hàng mới #${noti.maDH}</span>
+                                    <span class="text-xs text-on-surface-variant">Vừa xong</span>
+                                </div>
+                                <p class="text-xs text-on-surface mt-1 font-medium">${noti.tenKhachHang} - <strong class="text-emerald-600">${formatVND}</strong></p>
+                                <p class="text-[11px] text-on-surface-variant truncate max-w-[200px]">${noti.diaChiGiao || ''}</p>
+                                <a href="/admin/orders" class="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-semibold mt-2">
+                                    <span>Xem đơn hàng</span>
+                                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                </a>
+                            </div>
+                            <button type="button" class="text-on-surface-variant hover:text-on-surface p-1" onclick="this.parentElement.remove()">
+                                <span class="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                        `;
+
+                        container.appendChild(toast);
+
+                        // Animate in
+                        requestAnimationFrame(() => {
+                            toast.classList.remove('translate-y-4', 'opacity-0');
+                        });
+
+                        // Tự động ẩn sau 8 giây
+                        setTimeout(() => {
+                            toast.classList.add('translate-y-4', 'opacity-0');
+                            setTimeout(() => toast.remove(), 300);
+                        }, 8000);
+                    }
+                } catch (err) {
+                    console.warn("Không khởi tạo được WebSocket client:", err);
+                }
+            });
+        </script>
+    </header>
 </body>
 </html>

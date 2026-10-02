@@ -4,6 +4,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -608,22 +609,19 @@ public class AdminController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping({"/publishers/{id}/books", "/nha-xuat-ban/{id}/books"})
+    @GetMapping("/api/notifications")
     @ResponseBody
-    public ResponseEntity<?> getPublisherBooks(@PathVariable Integer id) {
-        List<SanPham> books = sanPhamRepository.findByNhaXuatBan_MaNXB(id);
-        List<Map<String, Object>> bookDtos = books.stream().map(b -> {
+    public ResponseEntity<?> getRecentNotifications() {
+        List<DonHang> recentOrders = donHangRepository.findAllByOrderByNgayDatDesc(PageRequest.of(0, 10)).getContent();
+        List<Map<String, Object>> notifs = recentOrders.stream().map(dh -> {
             Map<String, Object> map = new HashMap<>();
-            map.put("maSP", b.getMaSP());
-            map.put("tenSP", b.getTenSP());
-            map.put("isbn", b.getISBN() != null ? b.getISBN() : "");
-            map.put("giaBan", b.getGiaBan());
-            map.put("soLuongTon", b.getSoLuongTon());
-            map.put("trangThai", b.getTrangThai());
-            map.put("hinhAnh", b.getHinhAnh());
-            map.put("danhMuc", b.getDanhMuc() != null ? b.getDanhMuc().getTenDanhMuc() : "");
+            map.put("maDH", dh.getMaDH());
+            map.put("tenKhachHang", dh.getKhachHang() != null ? dh.getKhachHang().getHoTen() : "Khách vãng lai");
+            map.put("tongTien", dh.getTongTien());
+            map.put("trangThai", dh.getTrangThai());
+            map.put("ngayDat", dh.getNgayDat() != null ? dh.getNgayDat().toString() : "");
             return map;
         }).toList();
-        return ResponseEntity.ok(bookDtos);
+        return ResponseEntity.ok(notifs);
     }
 }
