@@ -19,12 +19,11 @@ import java.util.Optional;
 @Repository
 public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM SanPham s WHERE s.maSP = :id")
+    @Query(value = "SELECT * FROM san_pham WHERE masp = :id FOR UPDATE", nativeQuery = true)
     Optional<SanPham> findByIdWithLock(@Param("id") Integer id);
 
     @Modifying
-    @Query("UPDATE SanPham s SET s.soLuongTon = s.soLuongTon + :soLuong WHERE s.maSP = :maSP")
+    @Query(value = "UPDATE san_pham SET so_luong_ton = so_luong_ton + :soLuong WHERE masp = :maSP", nativeQuery = true)
     int increaseStock(@Param("maSP") Integer maSP, @Param("soLuong") Integer soLuong);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"danhMuc", "nhaXuatBan", "nhaCungCap"})

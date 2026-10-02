@@ -1,7 +1,9 @@
 package vn.bookstore.the4bookstore.service;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.bookstore.the4bookstore.dto.OrderNotificationDTO;
 import vn.bookstore.the4bookstore.entity.*;
 import vn.bookstore.the4bookstore.repository.*;
 
@@ -19,19 +21,22 @@ public class DonHangService {
     private final ThanhToanRepository thanhToanRepository;
     private final GioHangService gioHangService;
     private final KhuyenMaiRepository khuyenMaiRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public DonHangService(DonHangRepository donHangRepository,
                           ChiTietDonHangRepository chiTietDonHangRepository,
                           SanPhamRepository sanPhamRepository,
                           ThanhToanRepository thanhToanRepository,
                           GioHangService gioHangService,
-                          KhuyenMaiRepository khuyenMaiRepository) {
+                          KhuyenMaiRepository khuyenMaiRepository,
+                          SimpMessagingTemplate messagingTemplate) {
         this.donHangRepository = donHangRepository;
         this.chiTietDonHangRepository = chiTietDonHangRepository;
         this.sanPhamRepository = sanPhamRepository;
         this.thanhToanRepository = thanhToanRepository;
         this.gioHangService = gioHangService;
         this.khuyenMaiRepository = khuyenMaiRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -167,6 +172,24 @@ public class DonHangService {
         // 8. Xóa các món đã đặt khỏi giỏ hàng
         for (ChiTietGioHang ctGH : cartItems) {
             gioHangService.removeFromCart(khachHang, ctGH.getSanPham().getMaSP());
+        }
+
+        // 9. Bắn thông báo Real-time qua WebSocket cho Admin Dashboard
+        try {
+            OrderNotificationDTO noti = OrderNotificationDTO.builder()
+                    .maDH(donHang.getMaDH())
+                    .tenKhachHang(khachHang.getHoTen() != null ? khachHang.getHoTen() : "Khách hàng #" + khachHang.getMaKH())
+                    .soDienThoai(donHang.getSoDienThoaiGiao())
+                    .diaChiGiao(donHang.getDiaChiGiao())
+                    .tongTien(donHang.getTongTien())
+                    .soLuongMon(cartItems.size())
+                    .trangThai(donHang.getTrangThai())
+                    .ngayDat(donHang.getNgayDat())
+                    .message("Có đơn hàng mới #" + donHang.getMaDH() + " từ " + (khachHang.getHoTen() != null ? khachHang.getHoTen() : "Khách hàng"))
+                    .build();
+            messagingTemplate.convertAndSend("/topic/admin/orders", noti);
+        } catch (Exception ignored) {
+            // Không làm gián đoạn transaction đặt hàng nếu WebSocket gặp sự cố
         }
 
         return donHang;
