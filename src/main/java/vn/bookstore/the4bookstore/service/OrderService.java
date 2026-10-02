@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.bookstore.the4bookstore.entity.ChiTietDonHang;
 import vn.bookstore.the4bookstore.entity.DonHang;
-import vn.bookstore.the4bookstore.entity.SanPham;
 import vn.bookstore.the4bookstore.repository.DonHangRepository;
 import vn.bookstore.the4bookstore.repository.SanPhamRepository;
 
@@ -44,13 +43,10 @@ public class OrderService {
                 dh.setLyDoHuy(reason);
             }
             // Hoàn lại số lượng tồn kho nếu đơn chuyển từ trạng thái chưa hủy sang hủy
-            if (!"DaHuy".equals(oldStatus) && !"Huy".equals(oldStatus) && dh.getChiTietDonHangs() != null) {
+            if (!"DaHuy".equalsIgnoreCase(oldStatus) && !"Huy".equalsIgnoreCase(oldStatus) && dh.getChiTietDonHangs() != null) {
                 for (ChiTietDonHang ct : dh.getChiTietDonHangs()) {
-                    SanPham sp = ct.getSanPham();
-                    if (sp != null && ct.getSoLuong() != null) {
-                        int currentStock = sp.getSoLuongTon() != null ? sp.getSoLuongTon() : 0;
-                        sp.setSoLuongTon(currentStock + ct.getSoLuong());
-                        sanPhamRepository.save(sp);
+                    if (ct.getSanPham() != null && ct.getSoLuong() != null) {
+                        sanPhamRepository.increaseStock(ct.getSanPham().getMaSP(), ct.getSoLuong());
                     }
                 }
             }

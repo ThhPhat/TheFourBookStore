@@ -1,8 +1,11 @@
 package vn.bookstore.the4bookstore.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,9 +14,18 @@ import vn.bookstore.the4bookstore.entity.DanhMuc;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM SanPham s WHERE s.maSP = :id")
+    Optional<SanPham> findByIdWithLock(@Param("id") Integer id);
+
+    @Modifying
+    @Query("UPDATE SanPham s SET s.soLuongTon = s.soLuongTon + :soLuong WHERE s.maSP = :maSP")
+    int increaseStock(@Param("maSP") Integer maSP, @Param("soLuong") Integer soLuong);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"danhMuc", "nhaXuatBan", "nhaCungCap"})
     List<SanPham> findAll();
