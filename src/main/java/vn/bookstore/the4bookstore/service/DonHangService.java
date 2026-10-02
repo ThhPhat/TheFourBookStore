@@ -1,7 +1,9 @@
 package vn.bookstore.the4bookstore.service;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.bookstore.the4bookstore.dto.OrderNotificationDTO;
 import vn.bookstore.the4bookstore.entity.*;
 import vn.bookstore.the4bookstore.repository.*;
 
@@ -19,19 +21,22 @@ public class DonHangService {
     private final ThanhToanRepository thanhToanRepository;
     private final GioHangService gioHangService;
     private final KhuyenMaiRepository khuyenMaiRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public DonHangService(DonHangRepository donHangRepository,
                           ChiTietDonHangRepository chiTietDonHangRepository,
                           SanPhamRepository sanPhamRepository,
                           ThanhToanRepository thanhToanRepository,
                           GioHangService gioHangService,
-                          KhuyenMaiRepository khuyenMaiRepository) {
+                          KhuyenMaiRepository khuyenMaiRepository,
+                          SimpMessagingTemplate messagingTemplate) {
         this.donHangRepository = donHangRepository;
         this.chiTietDonHangRepository = chiTietDonHangRepository;
         this.sanPhamRepository = sanPhamRepository;
         this.thanhToanRepository = thanhToanRepository;
         this.gioHangService = gioHangService;
         this.khuyenMaiRepository = khuyenMaiRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -76,13 +81,18 @@ public class DonHangService {
             throw new RuntimeException("Vui lòng chọn ít nhất một sản phẩm để đặt hàng!");
         }
 
-        // 2. Kiểm tra tồn kho
+        // 2. Khóa và kiểm tra tồn kho bằng Pessimistic Lock (tránh race condition)
+        List<SanPham> lockedProducts = new ArrayList<>();
         for (ChiTietGioHang ct : cartItems) {
-            SanPham sp = ct.getSanPham();
+            Integer maSP = ct.getSanPham().getMaSP();
+            SanPham sp = sanPhamRepository.findByIdWithLock(maSP)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm mã: " + maSP));
+
             if (sp.getSoLuongTon() < ct.getSoLuong()) {
-                throw new RuntimeException("Sản phẩm \"" + sp.getTenSP() + "\" chỉ còn " 
-                        + sp.getSoLuongTon() + " cuốn trong kho!");
+                throw new RuntimeException("Sản phẩm \"" + sp.getTenSP() + "\" không đủ số lượng tồn kho (chỉ còn " 
+                        + sp.getSoLuongTon() + " cuốn)!");
             }
+            lockedProducts.add(sp);
         }
 
         // 3. Tạo đơn hàng
@@ -97,12 +107,13 @@ public class DonHangService {
         // Lưu đơn hàng trước để lấy maDH
         donHang = donHangRepository.save(donHang);
 
-        // 4. Tạo chi tiết đơn hàng và tính tổng tiền
+        // 4. Tạo chi tiết đơn hàng, trừ tồn kho an toàn và tính tổng tiền
         int tongTien = 0;
         List<ChiTietDonHang> chiTietList = new ArrayList<>();
 
-        for (ChiTietGioHang ctGH : cartItems) {
-            SanPham sp = ctGH.getSanPham();
+        for (int i = 0; i < cartItems.size(); i++) {
+            ChiTietGioHang ctGH = cartItems.get(i);
+            SanPham sp = lockedProducts.get(i);
 
             ChiTietDonHang ctDH = new ChiTietDonHang();
             ctDH.setDonHang(donHang);
@@ -163,6 +174,24 @@ public class DonHangService {
             gioHangService.removeFromCart(khachHang, ctGH.getSanPham().getMaSP());
         }
 
+        // 9. Bắn thông báo Real-time qua WebSocket cho Admin Dashboard
+        try {
+            OrderNotificationDTO noti = OrderNotificationDTO.builder()
+                    .maDH(donHang.getMaDH())
+                    .tenKhachHang(khachHang.getHoTen() != null ? khachHang.getHoTen() : "Khách hàng #" + khachHang.getMaKH())
+                    .soDienThoai(donHang.getSoDienThoaiGiao())
+                    .diaChiGiao(donHang.getDiaChiGiao())
+                    .tongTien(donHang.getTongTien())
+                    .soLuongMon(cartItems.size())
+                    .trangThai(donHang.getTrangThai())
+                    .ngayDat(donHang.getNgayDat())
+                    .message("Có đơn hàng mới #" + donHang.getMaDH() + " từ " + (khachHang.getHoTen() != null ? khachHang.getHoTen() : "Khách hàng"))
+                    .build();
+            messagingTemplate.convertAndSend("/topic/admin/orders", noti);
+        } catch (Exception ignored) {
+            // Không làm gián đoạn transaction đặt hàng nếu WebSocket gặp sự cố
+        }
+
         return donHang;
     }
 
@@ -203,9 +232,9 @@ public class DonHangService {
         // Hoàn lại tồn kho
         if (donHang.getChiTietDonHangs() != null) {
             for (ChiTietDonHang ct : donHang.getChiTietDonHangs()) {
-                SanPham sp = ct.getSanPham();
-                sp.setSoLuongTon(sp.getSoLuongTon() + ct.getSoLuong());
-                sanPhamRepository.save(sp);
+                if (ct.getSanPham() != null && ct.getSoLuong() != null) {
+                    sanPhamRepository.increaseStock(ct.getSanPham().getMaSP(), ct.getSoLuong());
+                }
             }
         }
 

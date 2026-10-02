@@ -1,6 +1,7 @@
 package vn.bookstore.the4bookstore.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import vn.bookstore.the4bookstore.entity.DanhMuc;
@@ -38,6 +39,7 @@ public class SanPhamService {
         return sanPhamRepository.findTop4ByLoaiSPAndTrangThaiIn(loaiSP, CUSTOMER_STATUSES);
     }
 
+    @Cacheable(value = "categories", key = "#loaiSP")
     public List<DanhMuc> getCategoriesByLoaiSP(String loaiSP) {
         List<DanhMuc> allActive = danhMucRepository.findAll().stream()
                 .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
