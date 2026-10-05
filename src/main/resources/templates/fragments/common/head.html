@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="common_head(pageTitle)">
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title th:text="${pageTitle}">The4BookStore - Hiệu Sách Độc Lập</title>
+    
+    <!-- Google Fonts: Be Vietnam Pro & Inter for native Vietnamese typography -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&amp;family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+    
+    <!-- Material Symbols Outlined -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    
+    <!-- Tailwind CSS with Forest Folio Palette & Extended Border Radius Scale -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#004c22",
+                        "primary-container": "#166534",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#93e0a2",
+                        "secondary": "#904d00",
+                        "secondary-container": "#fe932c",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#004b32",
+                        "tertiary-container": "#006545",
+                        "on-tertiary": "#ffffff",
+                        "background": "#f9f9ff",
+                        "on-background": "#141b2b",
+                        "surface": "#f9f9ff",
+                        "surface-bright": "#f9f9ff",
+                        "surface-dim": "#d3daef",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "surface-container": "#e9edff",
+                        "surface-container-high": "#e1e8fd",
+                        "surface-container-highest": "#dce2f7",
+                        "on-surface": "#141b2b",
+                        "on-surface-variant": "#404940",
+                        "outline": "#707a6f",
+                        "outline-variant": "#bfc9bd",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6"
+                    },
+                    borderRadius: {
+                        "none": "0px",
+                        "xs": "0.25rem",
+                        "sm": "0.375rem",
+                        "DEFAULT": "0.5rem",
+                        "md": "0.625rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "2xl": "1.25rem",
+                        "3xl": "1.5rem",
+                        "4xl": "2rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "space-xs": "0.25rem",
+                        "space-sm": "0.5rem",
+                        "space-md": "1rem",
+                        "space-lg": "1.5rem",
+                        "space-xl": "2rem",
+                        "margin": "1rem",
+                        "margin-desktop": "2rem"
+                    },
+                    fontFamily: {
+                        sans: ["'Be Vietnam Pro'", "'Inter'", "system-ui", "-apple-system", "sans-serif"],
+                        "body-md": ["'Be Vietnam Pro'", "'Inter'", "sans-serif"],
+                        "headline-sm": ["'Be Vietnam Pro'", "sans-serif"],
+                        "headline-md": ["'Be Vietnam Pro'", "sans-serif"],
+                        "headline-lg": ["'Be Vietnam Pro'", "sans-serif"],
+                        "headline-xl": ["'Be Vietnam Pro'", "sans-serif"]
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        @layer base {
+            html, body {
+                font-family: 'Be Vietnam Pro', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0;
+                padding: 0;
+            }
+            input, select, textarea, button {
+                font-family: inherit;
+            }
+            body { overscroll-behavior: none; }
+        }
+        ::-webkit-scrollbar { display: none; }
+    </style>
+    <!-- SockJS & STOMP Client for Real-time Notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body></body>
+</html>
