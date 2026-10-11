@@ -207,6 +207,16 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
 
     // --- MARKETPLACE QUERIES ---
 
+    // --- SPOTLIGHT ALGORITHM CANDIDATES ---
+    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @Query("SELECT s FROM SanPham s WHERE (LOWER(s.loaiSP) = 'sach' OR s.loaiSP IS NULL) " +
+           "AND s.trangThai = 'DangBan' " +
+           "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
+           "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') " +
+           "AND s.soLuongTon > 0 " +
+           "ORDER BY s.soLuongDaBan DESC, s.ngayTao DESC")
+    List<SanPham> findSpotlightCandidates(Pageable pageable);
+
     // 1. Dành cho Guest: Sản phẩm bán trên 10 sản phẩm, sắp xếp giảm dần theo lượt bán
     @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
     @Query("SELECT s FROM SanPham s WHERE s.soLuongDaBan > 10 AND s.trangThai = 'DangBan' AND s.trangThaiKhoa = 'BinhThuong' AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') ORDER BY s.soLuongDaBan DESC")

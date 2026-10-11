@@ -19,5 +19,12 @@ public interface ChiTietDonHangRepository extends JpaRepository<ChiTietDonHang, 
 
     @Query("SELECT COUNT(ct) FROM ChiTietDonHang ct WHERE ct.sanPham.maSP = :maSP")
     long countBySanPham_MaSP(@org.springframework.data.repository.query.Param("maSP") Integer maSP);
+
+    @Query("SELECT COALESCE(SUM(ct.soLuong), 0) FROM ChiTietDonHang ct " +
+           "WHERE ct.sanPham.maSP = :maSP " +
+           "AND ct.donHang.trangThai IN ('DaGiao', 'HoanTat') " +
+           "AND ct.donHang.ngayDat >= :sinceDate")
+    Long countSoldQuantitySince(@org.springframework.data.repository.query.Param("maSP") Integer maSP,
+                                @org.springframework.data.repository.query.Param("sinceDate") java.time.LocalDateTime sinceDate);
 }
 

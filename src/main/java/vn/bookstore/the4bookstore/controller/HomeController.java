@@ -88,6 +88,9 @@ public class HomeController {
         List<DanhMuc> allActive = danhMucService.getAllActive();
         Page<DanhMuc> categoryPage = danhMucService.getAllActivePaged(requestedPage, pageSize);
 
+        // Section: Hero Spotlight - Sách Nổi Bật Tháng (Thuật toán đa tiêu chí)
+        model.addAttribute("bookOfTheMonth", sanPhamService.getBookOfTheMonth());
+
         // Section: Sách Bán Chạy
         model.addAttribute("featuredBooks", sanPhamService.getFeaturedBooks());
 
