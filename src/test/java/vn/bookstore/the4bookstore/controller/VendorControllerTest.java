@@ -38,6 +38,8 @@ class VendorControllerTest {
     @MockitoBean private TaiKhoanRepository taiKhoanRepository;
     @MockitoBean private DanhMucRepository danhMucRepository;
     @MockitoBean private NhaXuatBanRepository nhaXuatBanRepository;
+    @MockitoBean private TacGiaRepository tacGiaRepository;
+    @MockitoBean private vn.bookstore.the4bookstore.service.CloudinaryService cloudinaryService;
 
     @MockitoBean private SanPhamRepository sanPhamRepository;
     @MockitoBean private KhachHangRepository khachHangRepository;
@@ -85,10 +87,11 @@ class VendorControllerTest {
 
     @Test
     @WithMockUser(username = "customer", roles = {"KHACHHANG"})
-    @DisplayName("Khách hàng đã có shop truy cập GET /vendor/register sẽ chuyển hướng về dashboard")
+    @DisplayName("Khách hàng đã có shop đang hoạt động truy cập GET /vendor/register sẽ chuyển hướng về dashboard")
     void testRegisterForm_AlreadyHasShop_RedirectsToDashboard() throws Exception {
         Shop existingShop = new Shop();
         existingShop.setMaShop(1);
+        existingShop.setTrangThai("HoatDong");
         when(shopService.findByTaiKhoan(any())).thenReturn(Optional.of(existingShop));
 
         mockMvc.perform(get("/vendor/register"))
@@ -98,7 +101,7 @@ class VendorControllerTest {
 
     @Test
     @WithMockUser(username = "customer", roles = {"KHACHHANG"})
-    @DisplayName("Khách hàng gửi POST /vendor/register thành công mở gian hàng và redirect về dashboard")
+    @DisplayName("Khách hàng gửi POST /vendor/register thành công mở gian hàng và redirect về pending chờ duyệt")
     void testHandleRegister_Success() throws Exception {
         Shop newShop = new Shop();
         newShop.setMaShop(2);
@@ -113,9 +116,54 @@ class VendorControllerTest {
                         .param("soDienThoai", "0908765432")
                         .param("emailShop", "trithucmoi@gmail.com"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/vendor/dashboard"))
+                .andExpect(redirectedUrl("/vendor/pending"))
                 .andExpect(flash().attributeExists("successMessage"));
 
-        verify(shopService, times(1)).registerShop(any(), eq("Nhà Sách Tri Thức Mới"), anyString(), eq("456 Lê Lợi, Q.1, TP.HCM"), eq("0908765432"), eq("trithucmoi@gmail.com"));
+        verify(shopService, times(1)).registerShop(any(), eq("Nhà Sách Tri Thức Mới"), any(), eq("456 Lê Lợi, Q.1, TP.HCM"), eq("0908765432"), eq("trithucmoi@gmail.com"));
+    }
+
+    @Test
+    @WithMockUser(username = "customer", roles = {"VENDOR"})
+    @DisplayName("Vendor tự nhập NXB khi lưu sách thành công")
+    void testSaveProduct_WithCustomPublisher() throws Exception {
+        Shop shop = new Shop();
+        shop.setMaShop(1);
+        shop.setTrangThai("HoatDong");
+        when(shopService.findByTaiKhoan(any())).thenReturn(Optional.of(shop));
+
+        mockMvc.perform(post("/vendor/products/save")
+                        .with(csrf())
+                        .param("tenSP", "Sách Thử Nghiệm Tự Nhập NXB")
+                        .param("giaBan", "150000")
+                        .param("soLuongTon", "20")
+                        .param("tenNXB", "NXB Tri Thức Trẻ"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/vendor/products"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(vendorService, times(1)).saveShopProduct(eq(1), any(), any(), any(), eq("NXB Tri Thức Trẻ"), any());
+    }
+
+    @Test
+    @WithMockUser(username = "customer", roles = {"VENDOR"})
+    @DisplayName("Vendor tự nhập Tác giả khi lưu sách thành công")
+    void testSaveProduct_WithAuthor() throws Exception {
+        Shop shop = new Shop();
+        shop.setMaShop(1);
+        shop.setTrangThai("HoatDong");
+        when(shopService.findByTaiKhoan(any())).thenReturn(Optional.of(shop));
+
+        mockMvc.perform(post("/vendor/products/save")
+                        .with(csrf())
+                        .param("tenSP", "Đắc Nhân Tâm")
+                        .param("giaBan", "120000")
+                        .param("soLuongTon", "50")
+                        .param("tenNXB", "NXB Trẻ")
+                        .param("tenTacGia", "Dale Carnegie"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/vendor/products"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(vendorService, times(1)).saveShopProduct(eq(1), any(), any(), any(), eq("NXB Trẻ"), eq("Dale Carnegie"));
     }
 }

@@ -22,15 +22,26 @@ import vn.bookstore.the4bookstore.service.ShopService;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 @ControllerAdvice
 public class GlobalControllerAdvice {
 
-    private final KhachHangRepository khachHangRepository;
-    private final TaiKhoanRepository taiKhoanRepository;
-    private final DanhMucService danhMucService;
-    private final SanPhamService sanPhamService;
-    private final GioHangService gioHangService;
-    private final ShopService shopService;
+    @Autowired(required = false)
+    private KhachHangRepository khachHangRepository;
+    @Autowired(required = false)
+    private TaiKhoanRepository taiKhoanRepository;
+    @Autowired(required = false)
+    private DanhMucService danhMucService;
+    @Autowired(required = false)
+    private SanPhamService sanPhamService;
+    @Autowired(required = false)
+    private GioHangService gioHangService;
+    @Autowired(required = false)
+    private ShopService shopService;
+
+    public GlobalControllerAdvice() {
+    }
 
     public GlobalControllerAdvice(KhachHangRepository khachHangRepository,
                                   TaiKhoanRepository taiKhoanRepository,

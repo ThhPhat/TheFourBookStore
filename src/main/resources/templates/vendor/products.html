@@ -65,10 +65,16 @@
                         </td>
                         <td class="p-4 font-bold text-on-surface">
                             <div th:text="${sp.tenSP}">Tên sách</div>
+                            <div th:if="${sp.danhSachTacGia != null and !sp.danhSachTacGia.isEmpty()}" class="text-[11px] text-primary font-medium mt-0.5 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[13px]">person</span>
+                                <span th:text="${sp.danhSachTacGia}">Tác giả</span>
+                            </div>
                             <div class="flex items-center gap-2 mt-0.5 text-[11px] text-on-surface-variant font-normal">
                                 <span class="font-mono text-primary font-bold" th:text="'Mã SP: #' + ${sp.maSP}">Mã SP: #1</span>
                                 <span class="text-outline">|</span>
                                 <span th:text="'ISBN: ' + (${sp.ISBN != null and !sp.ISBN.isEmpty() ? sp.ISBN : 'N/A'})">ISBN</span>
+                                <span th:if="${sp.nhaXuatBan != null}" class="text-outline">|</span>
+                                <span th:if="${sp.nhaXuatBan != null}" class="text-emerald-700 font-medium" th:text="'NXB: ' + ${sp.nhaXuatBan.tenNXB}">NXB</span>
                             </div>
                         </td>
                         <td class="p-4 text-on-surface-variant" th:text="${sp.danhMuc != null ? sp.danhMuc.tenDanhMuc : 'N/A'}">Danh mục</td>

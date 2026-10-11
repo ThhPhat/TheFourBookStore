@@ -176,7 +176,7 @@ public class VoucherController {
             if (!expired && km.getDonToiThieu() != null && km.getDonToiThieu() > 0 && subtotal < km.getDonToiThieu()) {
                 eligible = false;
                 int thieu = km.getDonToiThieu() - subtotal;
-                reason = "Mua thêm " + String.format("%,d", thieu) + "đ để sử dụng";
+                reason = "Mua thêm " + String.format(Locale.US, "%,d", thieu) + "đ để sử dụng";
             }
             item.put("eligible", eligible);
             item.put("reason", reason);

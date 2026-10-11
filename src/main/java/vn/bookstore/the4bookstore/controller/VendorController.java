@@ -44,6 +44,7 @@ public class VendorController {
     private final TaiKhoanRepository taiKhoanRepository;
     private final DanhMucRepository danhMucRepository;
     private final NhaXuatBanRepository nhaXuatBanRepository;
+    private final TacGiaRepository tacGiaRepository;
 
     private TaiKhoan getCurrentUser(Authentication auth) {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) return null;
@@ -273,6 +274,7 @@ public class VendorController {
         model.addAttribute("sanPham", new SanPham());
         model.addAttribute("danhMucs", danhMucRepository.findAll());
         model.addAttribute("nhaXuatBans", nhaXuatBanRepository.findAll());
+        model.addAttribute("tacGias", tacGiaRepository.findAll());
         return "vendor/product_form";
     }
 
@@ -290,6 +292,7 @@ public class VendorController {
         model.addAttribute("sanPham", sp);
         model.addAttribute("danhMucs", danhMucRepository.findAll());
         model.addAttribute("nhaXuatBans", nhaXuatBanRepository.findAll());
+        model.addAttribute("tacGias", tacGiaRepository.findAll());
         return "vendor/product_form";
     }
 
@@ -299,6 +302,8 @@ public class VendorController {
                               @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                               @RequestParam(required = false) Integer maDanhMuc,
                               @RequestParam(required = false) Integer maNXB,
+                              @RequestParam(required = false) String tenNXB,
+                              @RequestParam(required = false) String tenTacGia,
                               RedirectAttributes redirectAttributes) {
         Shop shop = getCurrentShop(auth);
         String redirect = checkShopAccess(shop);
@@ -311,7 +316,7 @@ public class VendorController {
                     sanPham.setHinhAnh(uploadedImg);
                 }
             }
-            vendorService.saveShopProduct(shop.getMaShop(), sanPham, maDanhMuc, maNXB);
+            vendorService.saveShopProduct(shop.getMaShop(), sanPham, maDanhMuc, maNXB, tenNXB, tenTacGia);
             redirectAttributes.addFlashAttribute("successMessage", "Lưu sản phẩm thành công!");
             return "redirect:/vendor/products";
         } catch (Exception ex) {

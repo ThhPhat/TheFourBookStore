@@ -473,80 +473,15 @@ public class AdminController {
         return ResponseEntity.ok(bookDtos);
     }
 
-    // ==================== QUẢN LÝ NHÀ XUẤT BẢN (CRUD) ====================
+    // ==================== QUẢN LÝ NHÀ XUẤT BẢN ====================
+    // Chức năng quản lý NXB tập trung của Admin đã được gỡ bỏ.
+    // Nhà xuất bản hiện được các Gian hàng (Vendor) tự do nhập khi đăng bán sách.
     @GetMapping({"/publishers", "/nha-xuat-ban"})
-    public String publishers(Model model) {
-        List<NhaXuatBan> publishers = nhaXuatBanRepository.findAll();
-        Map<Integer, Long> bookCounts = new HashMap<>();
-        for (NhaXuatBan nxb : publishers) {
-            bookCounts.put(nxb.getMaNXB(), sanPhamRepository.countByNhaXuatBan_MaNXB(nxb.getMaNXB()));
-        }
-        long publishersWithBooks = bookCounts.values().stream().filter(c -> c > 0).count();
-
-        model.addAttribute("publishers", publishers);
-        model.addAttribute("bookCounts", bookCounts);
-        model.addAttribute("totalPublishers", publishers.size());
-        model.addAttribute("publishersWithBooks", publishersWithBooks);
-
-        return "admin/publishers";
+    public String publishers(RedirectAttributes ra) {
+        ra.addFlashAttribute("infoMessage", "Chức năng quản lý NXB tập trung đã được gỡ bỏ. Các gian hàng (Vendor) hiện có quyền tự do nhập tên Nhà xuất bản khi đăng bán sách.");
+        return "redirect:/admin/dashboard";
     }
 
-    @PostMapping({"/publishers/save", "/nha-xuat-ban/save"})
-    public String savePublisher(@RequestParam(value = "maNXB", required = false) Integer maNXB,
-                                @RequestParam("tenNXB") String tenNXB,
-                                @RequestParam(value = "diaChi", required = false) String diaChi,
-                                @RequestParam(value = "soDienThoai", required = false) String soDienThoai,
-                                @RequestParam(value = "email", required = false) String email,
-                                RedirectAttributes ra) {
-        try {
-            NhaXuatBan nxb;
-            if (maNXB != null && maNXB > 0) {
-                nxb = nhaXuatBanRepository.findById(maNXB).orElse(new NhaXuatBan());
-                ra.addFlashAttribute("successMessage", "Cập nhật nhà xuất bản thành công!");
-            } else {
-                nxb = new NhaXuatBan();
-                ra.addFlashAttribute("successMessage", "Thêm mới nhà xuất bản thành công!");
-            }
-            nxb.setTenNXB(tenNXB.trim());
-            nxb.setDiaChi(diaChi != null ? diaChi.trim() : "");
-            nxb.setSoDienThoai(soDienThoai != null ? soDienThoai.trim() : "");
-            nxb.setEmail(email != null ? email.trim() : "");
-            nhaXuatBanRepository.save(nxb);
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMessage", "Lỗi lưu nhà xuất bản: " + e.getMessage());
-        }
-        return "redirect:/admin/publishers";
-    }
-
-    @PostMapping({"/publishers/delete/{id}", "/nha-xuat-ban/delete/{id}"})
-    public String deletePublisher(@PathVariable Integer id, RedirectAttributes ra) {
-        long count = sanPhamRepository.countByNhaXuatBan_MaNXB(id);
-        if (count > 0) {
-            ra.addFlashAttribute("errorMessage", "Không thể xóa nhà xuất bản này vì đang có " + count + " đầu sách liên kết!");
-            return "redirect:/admin/publishers";
-        }
-        try {
-            nhaXuatBanRepository.deleteById(id);
-            ra.addFlashAttribute("successMessage", "Đã xóa nhà xuất bản thành công!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMessage", "Không thể xóa nhà xuất bản: " + e.getMessage());
-        }
-        return "redirect:/admin/publishers";
-    }
-
-    @GetMapping({"/publishers/{id}/json", "/nha-xuat-ban/{id}/json"})
-    @ResponseBody
-    public ResponseEntity<?> getPublisherJson(@PathVariable Integer id) {
-        return nhaXuatBanRepository.findById(id)
-                .map(nxb -> ResponseEntity.ok(Map.of(
-                        "maNXB", nxb.getMaNXB(),
-                        "tenNXB", nxb.getTenNXB(),
-                        "diaChi", nxb.getDiaChi() != null ? nxb.getDiaChi() : "",
-                        "soDienThoai", nxb.getSoDienThoai() != null ? nxb.getSoDienThoai() : "",
-                        "email", nxb.getEmail() != null ? nxb.getEmail() : ""
-                )))
-                .orElse(ResponseEntity.notFound().build());
-    }
 
     @GetMapping("/api/notifications")
     @ResponseBody
