@@ -31,6 +31,7 @@ public class SanPhamService {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @Cacheable("home_featured_books")
     public List<SanPham> getFeaturedBooks() {
         List<DanhMuc> bookCategories = getCategoriesByLoaiSP("Sach");
         List<Integer> bookCatIds = bookCategories.stream().map(DanhMuc::getMaDanhMuc).toList();
@@ -45,8 +46,14 @@ public class SanPhamService {
         return sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, pageable);
     }
 
+    @Cacheable(value = "home_preview", key = "#loaiSP")
     public List<SanPham> getPreviewByLoaiSP(String loaiSP) {
         return sanPhamRepository.findTop4ByLoaiSPAndTrangThaiIn(loaiSP, CUSTOMER_STATUSES);
+    }
+
+    @Cacheable("guest_top_sold")
+    public List<SanPham> getGuestTopSold() {
+        return sanPhamRepository.findTopProductsForGuest();
     }
 
     @Cacheable(value = "categories", key = "#loaiSP")
@@ -191,6 +198,7 @@ public class SanPhamService {
      * - Nếu chưa có đơn hàng: Hard delete (dọn dẹp sạch giỏ hàng, đánh giá, quan hệ tác giả, yêu thích... và xóa khỏi DB).
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"home_featured_books", "home_preview", "guest_top_sold", "categories"}, allEntries = true)
     public void deleteProduct(Integer maSP) {
         SanPham sp = sanPhamRepository.findById(maSP)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm với mã: " + maSP));

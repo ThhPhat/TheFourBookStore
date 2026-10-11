@@ -14,15 +14,15 @@ public class PhieuNhap {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer maPN;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maNCC", nullable = false)
     private NhaCungCap nhaCungCap;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maNV", nullable = false)
     private NhanVien nhanVien;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKho", nullable = false)
     private Kho kho;
 

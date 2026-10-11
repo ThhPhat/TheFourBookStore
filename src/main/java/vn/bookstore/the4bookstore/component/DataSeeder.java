@@ -49,6 +49,12 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // Tối ưu tốc độ khởi động: Nếu cơ sở dữ liệu đã có dữ liệu thì bỏ qua seeder,
+        // tránh gửi hàng chục câu query kiểm tra qua mạng internet làm chậm server boot.
+        if (sanPhamRepository.count() > 0 && taiKhoanRepository.count() > 0) {
+            return;
+        }
+
         if (jdbcTemplate != null) {
             try {
                 jdbcTemplate.execute("ALTER TABLE khach_hang MODIFY so_dien_thoai VARCHAR(20) NULL");

@@ -16,18 +16,18 @@ public class PhieuKiemKe {
     @Column(nullable = false)
     private LocalDateTime ngayKiemKe = LocalDateTime.now();
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maNV", nullable = false)
     private NhanVien nhanVien;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKho", nullable = false)
     private Kho kho;
 
     @Column(nullable = false, length = 30)
     private String trangThai = "ChoDuyet";
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maNVPheDuyet")
     private NhanVien nvPheDuyet;
 
