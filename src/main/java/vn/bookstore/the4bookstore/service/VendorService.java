@@ -94,7 +94,29 @@ public class VendorService {
         return sanPhamRepository.findActiveByShop(maShop, pageable);
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private TacGiaRepository tacGiaRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SanPhamTacGiaRepository sanPhamTacGiaRepository;
+
+    public void setTacGiaRepository(TacGiaRepository tacGiaRepository) {
+        this.tacGiaRepository = tacGiaRepository;
+    }
+
+    public void setSanPhamTacGiaRepository(SanPhamTacGiaRepository sanPhamTacGiaRepository) {
+        this.sanPhamTacGiaRepository = sanPhamTacGiaRepository;
+    }
+
     public SanPham saveShopProduct(Integer maShop, SanPham sanPham, Integer maDanhMuc, Integer maNXB) {
+        return saveShopProduct(maShop, sanPham, maDanhMuc, maNXB, null, null);
+    }
+
+    public SanPham saveShopProduct(Integer maShop, SanPham sanPham, Integer maDanhMuc, Integer maNXB, String tenNXB) {
+        return saveShopProduct(maShop, sanPham, maDanhMuc, maNXB, tenNXB, null);
+    }
+
+    public SanPham saveShopProduct(Integer maShop, SanPham sanPham, Integer maDanhMuc, Integer maNXB, String tenNXB, String tenTacGia) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
 
@@ -114,6 +136,21 @@ public class VendorService {
             sanPham.setGiaBan(0);
         }
 
+        // Xử lý Nhà Xuất Bản do Vendor tự do nhập hoặc chọn từ gợi ý
+        NhaXuatBan resolvedNXB = null;
+        if (tenNXB != null && !tenNXB.trim().isEmpty()) {
+            String cleanTenNXB = tenNXB.trim();
+            resolvedNXB = nhaXuatBanRepository.findByTenNXBIgnoreCase(cleanTenNXB)
+                    .orElseGet(() -> {
+                        NhaXuatBan newNxb = new NhaXuatBan();
+                        newNxb.setTenNXB(cleanTenNXB);
+                        return nhaXuatBanRepository.save(newNxb);
+                    });
+        } else if (maNXB != null) {
+            resolvedNXB = nhaXuatBanRepository.findById(maNXB).orElse(null);
+        }
+
+        SanPham saved;
         if (sanPham.getMaSP() != null) {
             SanPham existing = sanPhamRepository.findById(sanPham.getMaSP())
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
@@ -134,10 +171,12 @@ public class VendorService {
             if (maDanhMuc != null) {
                 existing.setDanhMuc(danhMucRepository.findById(maDanhMuc).orElse(null));
             }
-            if (maNXB != null) {
-                existing.setNhaXuatBan(nhaXuatBanRepository.findById(maNXB).orElse(null));
+            if (resolvedNXB != null || (tenNXB != null && tenNXB.trim().isEmpty())) {
+                existing.setNhaXuatBan(resolvedNXB);
+            } else if (maNXB != null) {
+                existing.setNhaXuatBan(resolvedNXB);
             }
-            return sanPhamRepository.save(existing);
+            saved = sanPhamRepository.save(existing);
         } else {
             sanPham.setShop(shop);
             sanPham.setTrangThaiKhoa("ChoDuyet");
@@ -150,11 +189,40 @@ public class VendorService {
             if (sanPham.getDanhMuc() == null) {
                 sanPham.setDanhMuc(danhMucRepository.findAll().stream().findFirst().orElse(null));
             }
-            if (maNXB != null) {
-                sanPham.setNhaXuatBan(nhaXuatBanRepository.findById(maNXB).orElse(null));
-            }
-            return sanPhamRepository.save(sanPham);
+            sanPham.setNhaXuatBan(resolvedNXB);
+            saved = sanPhamRepository.save(sanPham);
         }
+
+        // Xử lý Tác Giả (hỗ trợ 1 hoặc nhiều tác giả cách nhau bởi dấu phẩy/chấm phẩy)
+        if (tenTacGia != null) {
+            if (sanPhamTacGiaRepository != null && saved.getMaSP() != null) {
+                sanPhamTacGiaRepository.deleteBySanPhamId(saved.getMaSP());
+            }
+            if (!tenTacGia.trim().isEmpty() && tacGiaRepository != null && sanPhamTacGiaRepository != null) {
+                String[] authorNames = tenTacGia.split("[,;]");
+                int order = 1;
+                List<SanPhamTacGia> sptgList = new java.util.ArrayList<>();
+                for (String rawName : authorNames) {
+                    String cleanName = rawName.trim();
+                    if (!cleanName.isEmpty()) {
+                        TacGia tg = tacGiaRepository.findByTenTacGiaIgnoreCase(cleanName)
+                                .orElseGet(() -> {
+                                    TacGia newTg = new TacGia();
+                                    newTg.setTenTacGia(cleanName);
+                                    return tacGiaRepository.save(newTg);
+                                });
+                        SanPhamTacGia sptg = new SanPhamTacGia(saved, tg, order++);
+                        sanPhamTacGiaRepository.save(sptg);
+                        sptgList.add(sptg);
+                    }
+                }
+                saved.setSanPhamTacGias(sptgList);
+            } else {
+                saved.setSanPhamTacGias(new java.util.ArrayList<>());
+            }
+        }
+
+        return saved;
     }
 
     public void deleteShopProduct(Integer maShop, Integer maSP) {

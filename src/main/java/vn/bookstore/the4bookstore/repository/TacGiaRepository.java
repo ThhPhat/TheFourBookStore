@@ -9,5 +9,6 @@ import java.util.List;
 
 public interface TacGiaRepository extends JpaRepository<TacGia, Integer> {
     Optional<TacGia> findByTenTacGia(String tenTacGia);
+    Optional<TacGia> findByTenTacGiaIgnoreCase(String tenTacGia);
     List<TacGia> findByTenTacGiaContainingIgnoreCase(String keyword);
 }

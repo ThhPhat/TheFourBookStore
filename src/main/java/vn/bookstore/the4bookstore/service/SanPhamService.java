@@ -27,10 +27,107 @@ public class SanPhamService {
     private final ChiTietGioHangRepository chiTietGioHangRepository;
     private final DanhGiaRepository danhGiaRepository;
     private final SanPhamTacGiaRepository sanPhamTacGiaRepository;
+    private final SanPhamYeuThichRepository sanPhamYeuThichRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
 
+    /**
+     * Thuật toán tuyển chọn "SÁCH NỔI BẬT THÁNG" (Book of the Month Spotlight Algorithm):
+     *
+     * 1. Tập ứng viên (Candidates):
+     *    Lấy danh sách các cuốn sách đang bán, không bị khóa, shop hoạt động, còn tồn kho.
+     *
+     * 2. Công thức chấm điểm đa tiêu chí (Multi-factor Weighted Scoring Formula):
+     *    Score = (W_recentSales * sales30d) 
+     *          + (W_totalSales * totalSold) 
+     *          + (W_rating * ratingScore) 
+     *          + (W_favorites * favoriteCount) 
+     *          + recencyBonus
+     *
+     *    - sales30d: Số lượng bán trong 30 ngày qua (trọng số cao nhất: x25 điểm/cuốn).
+     *    - totalSold: Tổng lượng bán lũy kế (x2 điểm/cuốn).
+     *    - ratingScore: Điểm đánh giá trung bình nhân logarit số lượt đánh giá.
+     *    - favoriteCount: Lượt đưa vào danh sách yêu thích (x3 điểm/lượt).
+     *    - recencyBonus: Điểm thưởng thời gian xuất bản gần đây (10-25 điểm).
+     *
+     * 3. Cơ chế Fallback an toàn:
+     *    Nếu chưa có đơn hàng hoặc dữ liệu rỗng, tự động chọn cuốn sách bán chạy nhất
+     *    hoặc cuốn sách mới nhất có đầy đủ hình ảnh bìa.
+     */
+    @Cacheable("book_of_the_month")
+    public SanPham getBookOfTheMonth() {
+        List<SanPham> candidates = sanPhamRepository.findSpotlightCandidates(PageRequest.of(0, 15));
+        if (candidates.isEmpty()) {
+            Pageable p = PageRequest.of(0, 1);
+            List<SanPham> fallbackList = sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, p);
+            return fallbackList.isEmpty() ? null : fallbackList.get(0);
+        }
+
+        java.time.LocalDateTime thirtyDaysAgo = java.time.LocalDateTime.now().minusDays(30);
+        java.time.LocalDateTime ninetyDaysAgo = java.time.LocalDateTime.now().minusDays(90);
+
+        SanPham bestBook = null;
+        double maxScore = -1.0;
+
+        for (SanPham book : candidates) {
+            long recentSales = 0;
+            try {
+                Long rs = chiTietDonHangRepository.countSoldQuantitySince(book.getMaSP(), thirtyDaysAgo);
+                if (rs != null) recentSales = rs;
+            } catch (Exception ignored) {}
+
+            long totalSold = book.getSoLuongDaBan() != null ? book.getSoLuongDaBan() : 0;
+
+            Double avgRating = 5.0;
+            long reviewCount = 0;
+            try {
+                Double r = danhGiaRepository.findAverageRatingBySanPham(book);
+                if (r != null) avgRating = r;
+                reviewCount = danhGiaRepository.countBySanPhamAndTrangThai(book, "HienThi");
+            } catch (Exception ignored) {}
+
+            long favorites = 0;
+            try {
+                if (sanPhamYeuThichRepository != null) {
+                    favorites = sanPhamYeuThichRepository.countBySanPham(book);
+                }
+            } catch (Exception ignored) {}
+
+            double recencyBonus = 0.0;
+            if (book.getNgayTao() != null) {
+                if (book.getNgayTao().isAfter(thirtyDaysAgo)) {
+                    recencyBonus = 25.0;
+                } else if (book.getNgayTao().isAfter(ninetyDaysAgo)) {
+                    recencyBonus = 10.0;
+                }
+            }
+
+            // Điểm đánh giá: Điểm sao kết hợp độ tin cậy log(reviewCount)
+            double ratingScore = avgRating * Math.log(1.0 + reviewCount + 1.0);
+
+            // Công thức trọng số đa tiêu chí
+            double score = (recentSales * 25.0)
+                         + (totalSold * 2.0)
+                         + (ratingScore * 4.0)
+                         + (favorites * 3.0)
+                         + recencyBonus;
+
+            // Ưu tiên sách có hình ảnh thực tế
+            if (book.getHinhAnh() != null && !book.getHinhAnh().isBlank()) {
+                score += 5.0;
+            }
+
+            if (score > maxScore) {
+                maxScore = score;
+                bestBook = book;
+            }
+        }
+
+        return bestBook != null ? bestBook : candidates.get(0);
+    }
+
+    @Cacheable("home_featured_books")
     public List<SanPham> getFeaturedBooks() {
         List<DanhMuc> bookCategories = getCategoriesByLoaiSP("Sach");
         List<Integer> bookCatIds = bookCategories.stream().map(DanhMuc::getMaDanhMuc).toList();
@@ -45,8 +142,14 @@ public class SanPhamService {
         return sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, pageable);
     }
 
+    @Cacheable(value = "home_preview", key = "#loaiSP")
     public List<SanPham> getPreviewByLoaiSP(String loaiSP) {
         return sanPhamRepository.findTop4ByLoaiSPAndTrangThaiIn(loaiSP, CUSTOMER_STATUSES);
+    }
+
+    @Cacheable("guest_top_sold")
+    public List<SanPham> getGuestTopSold() {
+        return sanPhamRepository.findTopProductsForGuest();
     }
 
     @Cacheable(value = "categories", key = "#loaiSP")
@@ -191,6 +294,7 @@ public class SanPhamService {
      * - Nếu chưa có đơn hàng: Hard delete (dọn dẹp sạch giỏ hàng, đánh giá, quan hệ tác giả, yêu thích... và xóa khỏi DB).
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"home_featured_books", "home_preview", "guest_top_sold", "book_of_the_month", "categories"}, allEntries = true)
     public void deleteProduct(Integer maSP) {
         SanPham sp = sanPhamRepository.findById(maSP)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm với mã: " + maSP));

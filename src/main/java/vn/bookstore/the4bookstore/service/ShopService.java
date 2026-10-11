@@ -56,6 +56,13 @@ public class ShopService {
         return shopRepository.findById(maShop);
     }
 
+    @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("pendingShopCount")
+    public long countPendingShops() {
+        return shopRepository.countByTrangThai("ChoDuyet");
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public Shop registerShop(TaiKhoan taiKhoan, String tenShop, String moTa, String diaChi, String soDienThoai, String email) {
         if (shopRepository.findByTaiKhoan(taiKhoan).isPresent()) {
             throw new IllegalArgumentException("Tài khoản này đã đăng ký mở shop!");
@@ -107,6 +114,7 @@ public class ShopService {
         return shopRepository.save(shop);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public void duyetShop(Integer maShop) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop"));
@@ -153,6 +161,7 @@ public class ShopService {
         }
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public void xoaShop(Integer maShop) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));

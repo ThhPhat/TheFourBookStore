@@ -33,6 +33,7 @@ public class HomeController {
 
     private final SanPhamService sanPhamService;
     private final DanhMucService danhMucService;
+    private final vn.bookstore.the4bookstore.service.KhuyenMaiService khuyenMaiService;
     private final KhuyenMaiRepository khuyenMaiRepository;
     private final VoucherDaLuuRepository voucherDaLuuRepository;
     private final KhachHangRepository khachHangRepository;
@@ -40,8 +41,13 @@ public class HomeController {
     private final vn.bookstore.the4bookstore.repository.SanPhamRepository sanPhamRepository;
     private final vn.bookstore.the4bookstore.service.UserInteractionService userInteractionService;
 
-    private KhachHang getCurrentKhachHang(Authentication auth) {
+    private KhachHang getCurrentKhachHang(Authentication auth, jakarta.servlet.http.HttpServletRequest request) {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) return null;
+        if (request != null) {
+            Object cached = request.getAttribute("CURRENT_KHACH_HANG_CACHE");
+            if (cached instanceof KhachHang kh) return kh;
+            if (Boolean.TRUE.equals(request.getAttribute("CURRENT_KHACH_HANG_CACHE_NULL"))) return null;
+        }
         TaiKhoan tk = null;
         Object p = auth.getPrincipal();
         if (p instanceof CustomUserDetails ud && ud.getTaiKhoan() != null && ud.getTaiKhoan().getMaTaiKhoan() != null)
@@ -59,13 +65,16 @@ public class HomeController {
         if (tk == null && auth.getName() != null)
             tk = taiKhoanRepository.findByEmail(auth.getName()).or(() -> taiKhoanRepository.findByTenDangNhap(auth.getName())).orElse(null);
         if (tk == null) return null;
-        return khachHangRepository.findByTaiKhoan(tk).orElse(null);
+        KhachHang kh = khachHangRepository.findByTaiKhoan(tk).orElse(null);
+        if (request != null && kh != null) request.setAttribute("CURRENT_KHACH_HANG_CACHE", kh);
+        return kh;
     }
 
     @GetMapping("/")
     public String home(
             @RequestParam(name = "catPage", required = false) Integer catPage,
             @RequestParam(name = "page", required = false) Integer page,
+            jakarta.servlet.http.HttpServletRequest request,
             Model model) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
@@ -78,6 +87,9 @@ public class HomeController {
         int pageSize = 10;
         List<DanhMuc> allActive = danhMucService.getAllActive();
         Page<DanhMuc> categoryPage = danhMucService.getAllActivePaged(requestedPage, pageSize);
+
+        // Section: Hero Spotlight - Sách Nổi Bật Tháng (Thuật toán đa tiêu chí)
+        model.addAttribute("bookOfTheMonth", sanPhamService.getBookOfTheMonth());
 
         // Section: Sách Bán Chạy
         model.addAttribute("featuredBooks", sanPhamService.getFeaturedBooks());
@@ -104,13 +116,9 @@ public class HomeController {
         boolean isGuest = (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal()));
         KhachHang kh = null;
         try {
-            publicVouchers = khuyenMaiRepository.findAll().stream()
-                    .filter(km -> "HoatDong".equalsIgnoreCase(km.getTrangThai()))
-                    .filter(km -> Boolean.TRUE.equals(km.getHienThiCongKhai()))
-                    .filter(KhuyenMai::isDangDienRa)
-                    .toList();
+            publicVouchers = khuyenMaiService.getActivePublicVouchers();
 
-            kh = getCurrentKhachHang(auth);
+            kh = getCurrentKhachHang(auth, request);
             if (kh != null) {
                 savedVoucherIds.addAll(voucherDaLuuRepository.findSavedVoucherIdsByKhachHang(kh));
             }
@@ -120,7 +128,7 @@ public class HomeController {
         model.addAttribute("isGuest", isGuest);
 
         // --- ĐẶC QUYỀN GUEST: Sản phẩm bán trên 10 sản phẩm (sắp xếp giảm dần) ---
-        List<SanPham> guestTopSold = sanPhamRepository.findTopProductsForGuest();
+        List<SanPham> guestTopSold = sanPhamService.getGuestTopSold();
         model.addAttribute("guestTopSold", guestTopSold);
 
         // --- ĐẶC QUYỀN USER: 20 sản phẩm mới nhất, bán chạy, đánh giá cao, yêu thích nhất ---

@@ -115,7 +115,27 @@
 
                         <!-- Right Hero Column: Featured Book Spotlight (5 cols) -->
                         <div class="lg:col-span-5 flex justify-center items-center">
-                            <div class="relative group">
+                            <div class="relative group" th:if="${bookOfTheMonth != null}">
+                                <a th:href="@{'/san-pham/' + ${bookOfTheMonth.maSP}}" class="block cursor-pointer" title="Xem chi tiết sách nổi bật tháng">
+                                    <div class="absolute -inset-4 bg-gradient-to-r from-primary-fixed to-secondary-fixed rounded-3xl blur-xl opacity-50 group-hover:opacity-80 transition duration-700"></div>
+                                    <div class="relative w-56 sm:w-64 aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl bg-surface-container border-2 border-white/50 transition-transform duration-300 group-hover:scale-[1.02]">
+                                        <img th:alt="${bookOfTheMonth.tenSP}" class="w-full h-full object-cover"
+                                             th:src="${bookOfTheMonth.hinhAnh != null && !bookOfTheMonth.hinhAnh.isBlank() ? bookOfTheMonth.hinhAnh : 'https://lh3.googleusercontent.com/aida-public/AB6AXuAJxhxEUoGYZXYaOldMaT7d3dcCRrYvCD-3AWG8q4nOBMKeBIhtPi1dKb9NiDZHTXWMxMULBn3rsm5dU8_IVOjwK8Bnkg8xf-IGsBbsQoLtc5D6EWqcU1KfQ1LzI9jMW8JHZBBy9sHF_7t1onS8pagaubUOfOqYifnPkQMRgKeMgWgWQ71XMqmHdC9fJzuMiB3aqbLZt8bE5qj4HVtt62KzVUKztkjut685dS6dOCMbTJ_WPnz-9N7y'}"/>
+                                        <div class="absolute bottom-3 inset-x-3 bg-on-surface/85 backdrop-blur-md rounded-2xl p-space-sm text-on-primary">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="font-label-sm text-[10px] text-primary-fixed font-bold uppercase">Sách Nổi Bật Tháng</p>
+                                                    <h4 class="font-headline-sm text-xs font-bold truncate text-white" th:text="${bookOfTheMonth.tenSP}">The Midnight Library</h4>
+                                                </div>
+                                                <span class="font-mono text-xs font-bold text-secondary-fixed shrink-0"
+                                                      th:text="${#numbers.formatDecimal(bookOfTheMonth.giaBan, 0, 'POINT', 0, 'POINT') + ' đ'}">189.000 đ</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <!-- Fallback nếu hệ thống chưa có sách -->
+                            <div class="relative group" th:unless="${bookOfTheMonth != null}">
                                 <div class="absolute -inset-4 bg-gradient-to-r from-primary-fixed to-secondary-fixed rounded-3xl blur-xl opacity-50 group-hover:opacity-80 transition duration-700"></div>
                                 <div class="relative w-56 sm:w-64 aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl bg-surface-container border-2 border-white/50">
                                     <img alt="The Midnight Library" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJxhxEUoGYZXYaOldMaT7d3dcCRrYvCD-3AWG8q4nOBMKeBIhtPi1dKb9NiDZHTXWMxMULBn3rsm5dU8_IVOjwK8Bnkg8xf-IGsBbsQoLtc5D6EWqcU1KfQ1LzI9jMW8JHZBBy9sHF_7t1onS8pagaubUOfOqYifnPkQMRgKeMgWgWQ71XMqmHdC9fJzuMiB3aqbLZt8bE5qj4HVtt62KzVUKztkjut685dS6dOCMbTJ_WPnz-9N7y"/>
