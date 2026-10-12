@@ -261,7 +261,7 @@ public class VendorController {
         if (redirect != null) return redirect;
 
         Page<SanPham> productPage = vendorService.getShopProducts(shop.getMaShop(), keyword, 
-                PageRequest.of(page, 10, Sort.by(Sort.Direction.DESC, "maSP")));
+                PageRequest.of(page, 12, Sort.by(Sort.Direction.DESC, "maSP")));
         model.addAttribute("shop", shop);
         model.addAttribute("products", productPage.getContent());
         model.addAttribute("page", productPage);

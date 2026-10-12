@@ -115,6 +115,56 @@
         }
         .btn-primary { --bs-btn-bg: var(--bs-primary); --bs-btn-border-color: var(--bs-primary); --bs-btn-hover-bg: #166534; --bs-btn-hover-border-color: #166534; }
         .table { --bs-table-bg: transparent; }
+
+        /* Đảm bảo tương phản icon và text khi hover/active/click đè lên Bootstrap !important */
+        .group:hover .group-hover\:text-on-primary,
+        .group:active .group-hover\:text-on-primary,
+        .group:focus .group-hover\:text-on-primary,
+        .group:hover .group-hover\:text-white,
+        .group:active .group-hover\:text-white,
+        .group:focus .group-hover\:text-white,
+        .cat-card-item:hover .cat-card-icon,
+        .cat-card-item:active .cat-card-icon,
+        .cat-card-item:focus .cat-card-icon,
+        .nav-all-cat-btn:hover,
+        .nav-all-cat-btn:active,
+        .nav-all-cat-btn:focus {
+            background-color: var(--bs-primary) !important;
+            color: #ffffff !important;
+        }
+        .cat-card-item:hover .cat-card-icon span,
+        .cat-card-item:active .cat-card-icon span,
+        .cat-card-item:focus .cat-card-icon span,
+        .cat-card-item:hover .cat-card-icon .material-symbols-outlined,
+        .cat-card-item:active .cat-card-icon .material-symbols-outlined,
+        .cat-card-item:focus .cat-card-icon .material-symbols-outlined,
+        .nav-all-cat-btn:hover *,
+        .nav-all-cat-btn:active *,
+        .nav-all-cat-btn:focus * {
+            color: #ffffff !important;
+        }
+
+        /* Hỗ trợ toàn cục các nút hoặc link có hover/active sang text trắng để đè Bootstrap !important */
+        a[class*="hover:text-white"]:hover,
+        a[class*="hover:text-white"]:active,
+        button[class*="hover:text-white"]:hover,
+        button[class*="hover:text-white"]:active,
+        a[class*="hover:text-on-primary"]:hover,
+        a[class*="hover:text-on-primary"]:active,
+        button[class*="hover:text-on-primary"]:hover,
+        button[class*="hover:text-on-primary"]:active {
+            color: #ffffff !important;
+        }
+        a[class*="hover:text-white"]:hover *,
+        a[class*="hover:text-white"]:active *,
+        button[class*="hover:text-white"]:hover *,
+        button[class*="hover:text-white"]:active *,
+        a[class*="hover:text-on-primary"]:hover *,
+        a[class*="hover:text-on-primary"]:active *,
+        button[class*="hover:text-on-primary"]:hover *,
+        button[class*="hover:text-on-primary"]:active * {
+            color: #ffffff !important;
+        }
     </style>
 </head>
 <body></body>
