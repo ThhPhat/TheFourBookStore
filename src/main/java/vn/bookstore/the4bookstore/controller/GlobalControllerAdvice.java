@@ -245,6 +245,21 @@ public class GlobalControllerAdvice {
         return vn.bookstore.the4bookstore.util.AvatarUtils.hasCustomAvatar(customAvatar);
     }
 
+    @ModelAttribute("currentShop")
+    public vn.bookstore.the4bookstore.entity.Shop getCurrentShop(Authentication authentication, HttpServletRequest request) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return null;
+        }
+        KhachHang kh = getCachedKhachHang(authentication, request);
+        if (kh != null && kh.getTaiKhoan() != null && shopService != null) {
+            Optional<vn.bookstore.the4bookstore.entity.Shop> userShop = shopService.findByTaiKhoan(kh.getTaiKhoan());
+            if (userShop.isPresent()) {
+                return userShop.get();
+            }
+        }
+        return null;
+    }
+
     @ModelAttribute("userDisplayName")
     public String getUserDisplayName(Authentication authentication, HttpServletRequest request) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
