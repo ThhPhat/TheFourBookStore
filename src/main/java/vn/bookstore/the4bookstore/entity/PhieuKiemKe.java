@@ -17,12 +17,16 @@ public class PhieuKiemKe {
     private LocalDateTime ngayKiemKe = LocalDateTime.now();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maNV", nullable = false)
+    @JoinColumn(name = "maNV")
     private NhanVien nhanVien;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maKho", nullable = false)
+    @JoinColumn(name = "maKho")
     private Kho kho;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ma_shop")
+    private Shop shop;
 
     @Column(nullable = false, length = 30)
     private String trangThai = "ChoDuyet";

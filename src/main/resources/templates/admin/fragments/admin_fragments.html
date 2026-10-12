@@ -275,32 +275,7 @@
                     <span>Đơn Hàng</span>
                 </a>
 
-                <!-- Kho Hàng -->
-                <a th:href="@{/admin/kho}"
-                   th:class="${activePage == 'kho'} ?
-                            'flex items-center gap-space-sm px-space-sm py-2.5 rounded-xl transition-colors bg-primary-container text-on-primary font-bold shadow-sm' :
-                            'flex items-center gap-space-sm px-space-sm py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface font-label-md text-label-md transition-colors'">
-                    <span class="material-symbols-outlined text-[20px]">warehouse</span>
-                    <span>Kho Hàng</span>
-                </a>
 
-                <!-- Phiếu Nhập -->
-                <a th:href="@{/admin/kho/phieu-nhap}"
-                   th:class="${activePage == 'phieu-nhap'} ?
-                            'flex items-center gap-space-sm pl-8 pr-space-sm py-2 mt-0.5 rounded-xl transition-colors bg-secondary-container/30 text-sec font-bold shadow-sm' :
-                            'flex items-center gap-space-sm pl-8 pr-space-sm py-2 mt-0.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface font-label-md text-label-md transition-colors'">
-                    <span class="material-symbols-outlined text-[18px]">input</span>
-                    <span>Phiếu Nhập</span>
-                </a>
-
-                <!-- Phiếu Kiểm Kê -->
-                <a th:href="@{/admin/kho/phieu-ke}"
-                   th:class="${activePage == 'phieu-ke'} ?
-                            'flex items-center gap-space-sm pl-8 pr-space-sm py-2 mt-0.5 rounded-xl transition-colors bg-secondary-container/30 text-sec font-bold shadow-sm' :
-                            'flex items-center gap-space-sm pl-8 pr-space-sm py-2 mt-0.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface font-label-md text-label-md transition-colors'">
-                    <span class="material-symbols-outlined text-[18px]">fact_check</span>
-                    <span>Phiếu Kiểm Kê</span>
-                </a>
 
                 <!-- Xử Lý Tranh Chấp (Disputes) -->
                 <a th:href="@{/admin/disputes}"
@@ -338,13 +313,13 @@
                     <span>Mã Giảm Giá</span>
                 </a>
 
-                <!-- Import / Export -->
+                <!-- Xuất Dữ Liệu Báo Cáo -->
                 <a th:href="@{/admin/import-export}"
                    th:class="${activePage == 'import-export'} ? 
                             'flex items-center gap-space-sm px-space-sm py-2.5 rounded-xl transition-colors bg-primary-container text-on-primary font-bold shadow-sm' : 
                             'flex items-center gap-space-sm px-space-sm py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface font-label-md text-label-md transition-colors'">
-                    <span class="material-symbols-outlined text-[20px]">sync_alt</span>
-                    <span>Nhập / Xuất Dữ Liệu</span>
+                    <span class="material-symbols-outlined text-[20px]">file_download</span>
+                    <span>Xuất Dữ Liệu Báo Cáo</span>
                 </a>
 
                 <!-- User Accounts -->

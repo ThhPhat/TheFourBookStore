@@ -10,4 +10,6 @@ import java.util.List;
 public interface PhieuKiemKeRepository extends JpaRepository<PhieuKiemKe, Integer> {
     List<PhieuKiemKe> findByKho(Kho kho);
     List<PhieuKiemKe> findByTrangThai(String trangThai);
+    List<PhieuKiemKe> findByShop_MaShopOrderByNgayKiemKeDesc(Integer maShop);
+    org.springframework.data.domain.Page<PhieuKiemKe> findByShop_MaShopOrderByNgayKiemKeDesc(Integer maShop, org.springframework.data.domain.Pageable pageable);
 }
