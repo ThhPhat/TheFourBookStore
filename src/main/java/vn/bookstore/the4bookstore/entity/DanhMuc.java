@@ -6,6 +6,7 @@ import lombok.*;
 @Table(name = "DANH_MUC", indexes = {
     @Index(name = "idx_dm_trangthai", columnList = "trangThai")
 })
+@org.hibernate.annotations.BatchSize(size = 50)
 @Data @NoArgsConstructor @AllArgsConstructor
 public class DanhMuc {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

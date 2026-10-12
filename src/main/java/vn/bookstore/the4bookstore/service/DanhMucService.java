@@ -19,6 +19,7 @@ public class DanhMucService {
 
     private final DanhMucRepository danhMucRepository;
 
+    @org.springframework.cache.annotation.Cacheable("allActiveCategories")
     public List<DanhMuc> getAllActive() {
         List<DanhMuc> active = danhMucRepository.findAll().stream()
                 .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
@@ -53,11 +54,13 @@ public class DanhMucService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"allActiveCategories", "categoriesByLoaiSP"}, allEntries = true)
     public DanhMuc save(DanhMuc danhMuc) {
         return danhMucRepository.save(danhMuc);
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"allActiveCategories", "categoriesByLoaiSP"}, allEntries = true)
     public void delete(Integer id) {
         danhMucRepository.deleteById(id);
     }

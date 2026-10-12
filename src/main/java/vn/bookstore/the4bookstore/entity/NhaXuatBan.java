@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 @Entity
 @Table(name = "NHA_XUAT_BAN")
+@org.hibernate.annotations.BatchSize(size = 50)
 @Data @NoArgsConstructor @AllArgsConstructor
 public class NhaXuatBan {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

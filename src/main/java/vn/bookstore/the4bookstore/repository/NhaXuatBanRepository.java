@@ -9,5 +9,6 @@ import java.util.List;
 
 public interface NhaXuatBanRepository extends JpaRepository<NhaXuatBan, Integer> {
     Optional<NhaXuatBan> findByTenNXB(String tenNXB);
+    Optional<NhaXuatBan> findByTenNXBIgnoreCase(String tenNXB);
     List<NhaXuatBan> findByTenNXBContainingIgnoreCase(String keyword);
 }
