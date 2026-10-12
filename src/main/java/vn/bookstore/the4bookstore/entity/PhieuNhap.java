@@ -15,15 +15,22 @@ public class PhieuNhap {
     private Integer maPN;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maNCC", nullable = false)
-    private NhaCungCap nhaCungCap;
+    @JoinColumn(name = "ma_shop")
+    private Shop shop;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maNV", nullable = false)
+    @JoinColumn(name = "maNCC", nullable = true)
+    private NhaCungCap nhaCungCap;
+
+    @Column(name = "nha_cung_cap_ten", length = 255)
+    private String nhaCungCapTen;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "maNV", nullable = true)
     private NhanVien nhanVien;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "maKho", nullable = false)
+    @JoinColumn(name = "maKho", nullable = true)
     private Kho kho;
 
     @Column(nullable = false)
@@ -35,6 +42,6 @@ public class PhieuNhap {
     @Column(length = 500)
     private String ghiChu;
 
-    @OneToMany(mappedBy = "phieuNhap")
+    @OneToMany(mappedBy = "phieuNhap", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChiTietPhieuNhap> chiTietPhieuNhaps;
 }

@@ -95,11 +95,7 @@ public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSu
         }
 
         if (isWarehouse) {
-            if (savedRequest != null && (savedRequest.getRedirectUrl().contains("/kho") || savedRequest.getRedirectUrl().contains("/admin/kho"))) {
-                getRedirectStrategy().sendRedirect(request, response, savedRequest.getRedirectUrl());
-                return;
-            }
-            getRedirectStrategy().sendRedirect(request, response, "/admin/kho");
+            getRedirectStrategy().sendRedirect(request, response, "/admin/dashboard");
             return;
         }
 
