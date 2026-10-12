@@ -26,6 +26,10 @@ import vn.bookstore.the4bookstore.security.CustomOAuth2User;
 import vn.bookstore.the4bookstore.security.CustomOidcUser;
 import vn.bookstore.the4bookstore.security.CustomUserDetails;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +48,8 @@ public class VendorController {
     private final TaiKhoanRepository taiKhoanRepository;
     private final DanhMucRepository danhMucRepository;
     private final NhaXuatBanRepository nhaXuatBanRepository;
+    private final TacGiaRepository tacGiaRepository;
+    private final SanPhamRepository sanPhamRepository;
 
     private TaiKhoan getCurrentUser(Authentication auth) {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) return null;
@@ -273,6 +279,7 @@ public class VendorController {
         model.addAttribute("sanPham", new SanPham());
         model.addAttribute("danhMucs", danhMucRepository.findAll());
         model.addAttribute("nhaXuatBans", nhaXuatBanRepository.findAll());
+        model.addAttribute("tacGias", tacGiaRepository.findAll());
         return "vendor/product_form";
     }
 
@@ -290,6 +297,7 @@ public class VendorController {
         model.addAttribute("sanPham", sp);
         model.addAttribute("danhMucs", danhMucRepository.findAll());
         model.addAttribute("nhaXuatBans", nhaXuatBanRepository.findAll());
+        model.addAttribute("tacGias", tacGiaRepository.findAll());
         return "vendor/product_form";
     }
 
@@ -299,6 +307,8 @@ public class VendorController {
                               @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                               @RequestParam(required = false) Integer maDanhMuc,
                               @RequestParam(required = false) Integer maNXB,
+                              @RequestParam(required = false) String tenNXB,
+                              @RequestParam(required = false) String tenTacGia,
                               RedirectAttributes redirectAttributes) {
         Shop shop = getCurrentShop(auth);
         String redirect = checkShopAccess(shop);
@@ -311,7 +321,7 @@ public class VendorController {
                     sanPham.setHinhAnh(uploadedImg);
                 }
             }
-            vendorService.saveShopProduct(shop.getMaShop(), sanPham, maDanhMuc, maNXB);
+            vendorService.saveShopProduct(shop.getMaShop(), sanPham, maDanhMuc, maNXB, tenNXB, tenTacGia);
             redirectAttributes.addFlashAttribute("successMessage", "Lưu sản phẩm thành công!");
             return "redirect:/vendor/products";
         } catch (Exception ex) {
@@ -337,6 +347,164 @@ public class VendorController {
             redirectAttributes.addFlashAttribute("errorMessage", "Không thể xóa sản phẩm: " + ex.getMessage());
         }
         return "redirect:/vendor/products";
+    }
+
+    // ==================== TẢI FILE CSV MẪU NHẬP SÁCH CHO GIAN HÀNG ====================
+    @GetMapping("/products/sample-csv")
+    public void downloadSampleProductsCsv(HttpServletResponse response) throws IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"mau_nhap_sach_shop.csv\"");
+
+        try (OutputStream os = response.getOutputStream();
+             PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8))) {
+            os.write(0xEF);
+            os.write(0xBB);
+            os.write(0xBF);
+
+            writer.println("ISBN,TenSP,GiaBan,SoLuongTon,LoaiSP,MaDanhMuc,MaNXB,MoTa");
+            writer.println("9786043658999,Đắc Nhân Tâm - Khổ Tiêu Chuẩn,85000,100,Sach,1,1,Sách kinh điển về nghệ thuật ứng xử và kết nối.");
+            writer.println("8935244855523,Sổ Tay Dot Grid Bìa Da Cao Cấp,45000,50,VanPhongPham,2,1,Sổ tay kẻ chấm dot ghi chép bullet journal.");
+            writer.flush();
+        }
+    }
+
+    // ==================== VENDOR NHẬP SẢN PHẨM HÀNG LOẠT TỪ FILE CSV ====================
+    @PostMapping("/products/import-csv")
+    public String importProductsCsv(Authentication auth,
+                                    @RequestParam("file") MultipartFile file,
+                                    RedirectAttributes ra) {
+        Shop shop = getCurrentShop(auth);
+        String redirect = checkShopAccess(shop);
+        if (redirect != null) return redirect;
+
+        if (file == null || file.isEmpty()) {
+            ra.addFlashAttribute("errorMessage", "Vui lòng chọn file CSV để tải lên!");
+            return "redirect:/vendor/products";
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".csv")) {
+            ra.addFlashAttribute("errorMessage", "Định dạng file không hợp lệ! Vui lòng tải lên file có đuôi .csv");
+            return "redirect:/vendor/products";
+        }
+
+        int addedCount = 0;
+        int updatedCount = 0;
+        int rowIdx = 0;
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                rowIdx++;
+                if (rowIdx == 1) continue; // Bỏ qua header
+                if (line.trim().isEmpty()) continue;
+
+                String[] cols = parseCsvLine(line);
+                if (cols.length < 4) continue;
+
+                String isbn = cols[0].trim();
+                String tenSP = cols[1].trim();
+                int giaBan = parseIntSafe(cols[2], 0);
+                int tonKho = parseIntSafe(cols[3], 0);
+                String loaiSP = cols.length > 4 && !cols[4].isBlank() ? cols[4].trim() : "Sach";
+                Integer maDanhMuc = cols.length > 5 ? parseIntegerSafe(cols[5]) : 1;
+                Integer maNxb = cols.length > 6 ? parseIntegerSafe(cols[6]) : null;
+                String moTa = cols.length > 7 ? cols[7].trim() : "";
+
+                if (tenSP.isEmpty()) continue;
+
+                // Kiểm tra xem sách này đã có trong shop chưa
+                Optional<SanPham> existingOpt = Optional.empty();
+                if (!isbn.isEmpty()) {
+                    existingOpt = sanPhamRepository.findByISBNAndShop_MaShop(isbn, shop.getMaShop());
+                }
+
+                if (existingOpt.isPresent()) {
+                    // Cập nhật sách đã có của shop
+                    SanPham sp = existingOpt.get();
+                    sp.setTenSP(tenSP);
+                    sp.setGiaBan(giaBan);
+                    int curStock = sp.getSoLuongTon() != null ? sp.getSoLuongTon() : 0;
+                    sp.setSoLuongTon(curStock + tonKho);
+                    if (!moTa.isEmpty()) sp.setMoTa(moTa);
+                    sanPhamRepository.save(sp);
+                    updatedCount++;
+                } else {
+                    // Thêm mới sản phẩm vào gian hàng của Vendor
+                    SanPham sp = new SanPham();
+                    sp.setISBN(!isbn.isEmpty() ? isbn : "ISBN-" + System.currentTimeMillis() % 1000000000L);
+                    sp.setTenSP(tenSP);
+                    sp.setGiaBan(giaBan);
+                    sp.setSoLuongTon(tonKho);
+                    sp.setSoLuongDaBan(0);
+                    sp.setMucTonToiThieu(5);
+                    sp.setLoaiSP(loaiSP);
+                    sp.setMoTa(moTa);
+                    sp.setTrangThai("DangBan");
+                    sp.setTrangThaiKhoa("BinhThuong");
+                    sp.setNgayTao(LocalDateTime.now());
+                    sp.setShop(shop); // Gắn đúng vào Shop của Vendor
+
+                    if (maDanhMuc != null) {
+                        danhMucRepository.findById(maDanhMuc).ifPresent(sp::setDanhMuc);
+                    }
+                    if (sp.getDanhMuc() == null) {
+                        danhMucRepository.findAll().stream().findFirst().ifPresent(sp::setDanhMuc);
+                    }
+                    if (maNxb != null) {
+                        nhaXuatBanRepository.findById(maNxb).ifPresent(sp::setNhaXuatBan);
+                    }
+
+                    sanPhamRepository.save(sp);
+                    addedCount++;
+                }
+            }
+
+            ra.addFlashAttribute("successMessage",
+                    String.format("Xử lý file CSV thành công: Thêm mới %d sản phẩm, Cập nhật tồn kho %d sản phẩm vào gian hàng của bạn!", addedCount, updatedCount));
+        } catch (Exception ex) {
+            log.error("Lỗi khi nhập CSV cho shop #{}: ", shop.getMaShop(), ex);
+            ra.addFlashAttribute("errorMessage", "Lỗi xử lý file CSV tại dòng " + rowIdx + ": " + ex.getMessage());
+        }
+
+        return "redirect:/vendor/products";
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '\"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                tokens.add(sb.toString());
+                sb.setLength(0);
+            } else {
+                sb.append(c);
+            }
+        }
+        tokens.add(sb.toString());
+        return tokens.toArray(new String[0]);
+    }
+
+    private int parseIntSafe(String val, int def) {
+        try {
+            return Integer.parseInt(val.trim().replace(".", "").replace(",", ""));
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private Integer parseIntegerSafe(String val) {
+        try {
+            return Integer.parseInt(val.trim());
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // --- QUẢN LÝ ĐƠN HÀNG CỦA SHOP (7 TRẠNG THÁI) ---

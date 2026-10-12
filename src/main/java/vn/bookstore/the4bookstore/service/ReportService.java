@@ -84,6 +84,7 @@ public class ReportService {
         String sql = "CALL sp_TopSachBanChay(10)";
 
         Query query = entityManager.createNativeQuery(sql);
+        @SuppressWarnings("unchecked")
         List<Object[]> results = query.getResultList();
 
         List<TopSellingBookDTO> dtos = new ArrayList<>();

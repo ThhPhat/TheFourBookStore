@@ -17,7 +17,7 @@ public class DonHang {
     @Column(nullable = false)
     private LocalDateTime ngayDat = LocalDateTime.now();
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKH", nullable = false)
     private KhachHang khachHang;
     
@@ -28,7 +28,7 @@ public class DonHang {
     @Column(nullable = false)
     private Integer tongTien = 0;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKM")
     private KhuyenMai khuyenMai;
     

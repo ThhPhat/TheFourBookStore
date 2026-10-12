@@ -35,6 +35,7 @@ class HomeControllerTest {
 
     @MockitoBean private SanPhamService sanPhamService;
     @MockitoBean private DanhMucService danhMucService;
+    @MockitoBean private KhuyenMaiService khuyenMaiService;
 
     @MockitoBean private SanPhamRepository sanPhamRepository;
     @MockitoBean private DanhMucRepository danhMucRepository;

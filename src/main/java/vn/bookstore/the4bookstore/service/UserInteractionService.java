@@ -69,19 +69,14 @@ public class UserInteractionService {
     // --- SẢN PHẨM ĐÃ XEM (RECENTLY VIEWED) ---
     public void recordView(KhachHang khachHang, Integer maSP) {
         if (khachHang == null || maSP == null) return;
-        SanPham sanPham = sanPhamRepository.findById(maSP).orElse(null);
-        if (sanPham == null) return;
+        try {
+            daXemRepository.upsertRecentlyViewed(khachHang.getMaKH(), maSP);
+        } catch (Exception ignored) {}
+    }
 
-        SanPhamDaXemId id = new SanPhamDaXemId(khachHang.getMaKH(), maSP);
-        SanPhamDaXem dx = daXemRepository.findById(id).orElseGet(() -> {
-            SanPhamDaXem newDx = new SanPhamDaXem();
-            newDx.setId(id);
-            newDx.setKhachHang(khachHang);
-            newDx.setSanPham(sanPham);
-            return newDx;
-        });
-        dx.setThoiGianXem(LocalDateTime.now());
-        daXemRepository.save(dx);
+    public void recordView(KhachHang khachHang, SanPham sanPham) {
+        if (khachHang == null || sanPham == null) return;
+        recordView(khachHang, sanPham.getMaSP());
     }
 
     @Transactional(readOnly = true)
@@ -154,14 +149,6 @@ public class UserInteractionService {
     @Transactional(readOnly = true)
     public List<Integer> getEligibleOrderIdsForReview(KhachHang khachHang, Integer maSP) {
         if (khachHang == null || maSP == null) return List.of();
-        List<Integer> deliveredOrders = chiTietDonHangRepository.findDeliveredOrderIdsByCustomerAndProduct(khachHang.getMaKH(), maSP);
-        SanPham sanPham = sanPhamRepository.findById(maSP).orElse(null);
-        if (sanPham == null) return List.of();
-
-        return deliveredOrders.stream().filter(maDH -> {
-            DonHang dh = donHangRepository.findById(maDH).orElse(null);
-            if (dh == null) return false;
-            return !danhGiaRepository.existsByKhachHangAndSanPhamAndDonHang(khachHang, sanPham, dh);
-        }).collect(Collectors.toList());
+        return chiTietDonHangRepository.findEligibleOrderIdsForReview(khachHang.getMaKH(), maSP);
     }
 }

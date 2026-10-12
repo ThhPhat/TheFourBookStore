@@ -18,6 +18,7 @@ public class NhaXuatBanService {
     private final NhaXuatBanRepository nhaXuatBanRepository;
     private final SanPhamRepository sanPhamRepository;
 
+    @org.springframework.cache.annotation.Cacheable("publishers")
     public List<NhaXuatBan> getAll() {
         return nhaXuatBanRepository.findAll();
     }
@@ -27,11 +28,13 @@ public class NhaXuatBanService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "publishers", allEntries = true)
     public NhaXuatBan save(NhaXuatBan nxb) {
         return nhaXuatBanRepository.save(nxb);
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "publishers", allEntries = true)
     public void delete(Integer id) {
         long bookCount = sanPhamRepository.countByNhaXuatBan_MaNXB(id);
         if (bookCount > 0) {
