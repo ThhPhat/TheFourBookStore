@@ -8,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "shop")
+@org.hibernate.annotations.BatchSize(size = 50)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

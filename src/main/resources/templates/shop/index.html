@@ -102,10 +102,10 @@
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                     <h2 class="text-lg font-bold text-on-surface flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary">menu_book</span>
-                        <span>Sách Của Gian Hàng</span>
+                        <span class="material-symbols-outlined text-primary">local_fire_department</span>
+                        <span>Sách Bán Chạy Của Gian Hàng</span>
                     </h2>
-                    <span class="text-xs text-on-surface-variant" th:text="'Tìm thấy ' + ${page.totalElements} + ' cuốn sách' + (${keyword != null and !keyword.isEmpty()} ? ' với từ khóa \'' + ${keyword} + '\'' : '')"></span>
+                    <span class="text-xs text-on-surface-variant" th:text="'Sắp xếp theo lượt bán chạy nhất • Tìm thấy ' + ${page.totalElements} + ' cuốn sách' + (${keyword != null and !keyword.isEmpty()} ? ' với từ khóa \'' + ${keyword} + '\'' : '')"></span>
                 </div>
                 <form method="get" th:action="@{'/shop/' + ${shop.slug}}" class="relative flex items-center w-full md:w-80">
                     <span class="material-symbols-outlined absolute left-3.5 text-on-surface-variant text-[20px] pointer-events-none">search</span>

@@ -14,9 +14,9 @@
                 <!-- Page Title -->
                 <div class="flex items-center justify-between mb-8">
                     <div>
-                        <div class="text-xs uppercase font-bold text-on-surface-variant tracking-wider mb-1">HỆ THỐNG / DỮ LIỆU</div>
-                        <h1 class="text-2xl font-bold text-on-surface">Trung Tâm Nhập &amp; Xuất Dữ Liệu Sàn</h1>
-                        <p class="text-xs text-on-surface-variant mt-1">Xuất dữ liệu báo cáo sang định dạng CSV/Excel và nhập sản phẩm hàng loạt nhanh chóng.</p>
+                        <div class="text-xs uppercase font-bold text-on-surface-variant tracking-wider mb-1">HỆ THỐNG / BÁO CÁO</div>
+                        <h1 class="text-2xl font-bold text-on-surface">Trung Tâm Xuất Dữ Liệu Báo Cáo Sàn</h1>
+                        <p class="text-xs text-on-surface-variant mt-1">Xuất dữ liệu hệ thống, đơn hàng, người dùng và gian hàng sang định dạng CSV phục vụ kiểm toán &amp; sao lưu.</p>
                     </div>
                 </div>
 
@@ -152,63 +152,6 @@
                     </div>
                 </div>
 
-                <!-- SECTION 2: NHẬP SẢN PHẨM HÀNG LOẠT -->
-                <div>
-                    <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-primary text-[22px]">upload_file</span>
-                        <h2 class="text-lg font-bold text-on-surface">Nhập Sản Phẩm Hàng Loạt Từ File CSV (Import Products)</h2>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- Upload Form -->
-                        <div class="lg:col-span-2 p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-sm">
-                            <h3 class="font-bold text-sm text-on-surface mb-2">Tải File Dữ Liệu Lên Hệ Thống</h3>
-                            <p class="text-xs text-on-surface-variant mb-4">Chọn tệp định dạng chuẩn <code>.csv</code> (mã hóa UTF-8). Hệ thống sẽ tự động cập nhật tồn kho nếu sản phẩm đã tồn tại hoặc tạo mới nếu chưa có.</p>
-
-                            <form th:action="@{/admin/import-export/import/products}" method="post" enctype="multipart/form-data" class="space-y-4">
-                                <div class="border-2 border-dashed border-surface-container rounded-2xl p-6 text-center hover:border-primary/50 transition-colors bg-surface-container-low/40">
-                                    <span class="material-symbols-outlined text-4xl text-on-surface-variant/60 mb-2">cloud_upload</span>
-                                    <div class="text-xs font-semibold text-on-surface">Kéo thả file CSV vào đây hoặc click để chọn file</div>
-                                    <p class="text-[11px] text-on-surface-variant mt-1">Dung lượng tối đa: 10MB • Định dạng cho phép: .csv</p>
-                                    <input type="file" name="file" accept=".csv" required class="mt-4 block w-full text-xs text-on-surface file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary hover:file:text-on-primary file:cursor-pointer"/>
-                                </div>
-
-                                <div class="flex items-center justify-between pt-2">
-                                    <a th:href="@{/admin/import-export/sample/products}"
-                                       class="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline">
-                                        <span class="material-symbols-outlined text-[16px]">description</span>
-                                        <span>Tải File Mẫu (sample_products.csv)</span>
-                                    </a>
-                                    <button type="submit" class="px-6 py-2.5 bg-primary text-on-primary font-bold text-xs rounded-xl hover:bg-primary-container transition-all flex items-center gap-1.5 shadow-sm">
-                                        <span class="material-symbols-outlined text-[16px]">publish</span>
-                                        <span>Bắt Đầu Nhập Sách</span>
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-
-                        <!-- Guide and Format Specifications -->
-                        <div class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-sm">
-                            <h3 class="font-bold text-sm text-on-surface mb-3 flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-primary text-[18px]">info</span>
-                                <span>Cấu Trúc Các Cột Trong File CSV</span>
-                            </h3>
-                            <ul class="text-xs text-on-surface-variant space-y-2.5 divide-y divide-surface-container/60">
-                                <li class="pt-2"><strong class="text-on-surface">1. ISBN:</strong> Mã định danh sách (nếu có, để đối soát sản phẩm trùng).</li>
-                                <li class="pt-2"><strong class="text-on-surface">2. TenSP (*):</strong> Tên sách hoặc văn phòng phẩm (Bắt buộc).</li>
-                                <li class="pt-2"><strong class="text-on-surface">3. GiaBan (*):</strong> Đơn giá bán (VNĐ, kiểu số nguyên).</li>
-                                <li class="pt-2"><strong class="text-on-surface">4. SoLuongTon (*):</strong> Số lượng tồn kho ban đầu (số nguyên).</li>
-                                <li class="pt-2"><strong class="text-on-surface">5. LoaiSP:</strong> <code>Sach</code>, <code>VanPhongPham</code> hoặc <code>QuaTang</code>.</li>
-                                <li class="pt-2"><strong class="text-on-surface">6. MaDanhMuc:</strong> Mã danh mục (ID số nguyên trong hệ thống).</li>
-                                <li class="pt-2"><strong class="text-on-surface">7. MaNXB:</strong> Mã Nhà xuất bản liên kết.</li>
-                                <li class="pt-2"><strong class="text-on-surface">8. MoTa:</strong> Tóm tắt giới thiệu nội dung cuốn sách.</li>
-                            </ul>
-                            <div class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
-                                💡 <strong>Mẹo:</strong> Hãy mở file mẫu bằng Excel, nhập liệu và chọn <em>Save As &rarr; CSV UTF-8 (Comma delimited) (*.csv)</em> để giữ đúng nguyên vẹn dấu tiếng Việt.
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </main>
     </div>

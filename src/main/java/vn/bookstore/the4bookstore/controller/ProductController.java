@@ -34,13 +34,20 @@ public class ProductController {
     private final TaiKhoanRepository taiKhoanRepository;
     private final vn.bookstore.the4bookstore.service.ShopService shopService;
 
-    private KhachHang getCurrentKhachHang(Authentication auth) {
+    private KhachHang getCurrentKhachHang(Authentication auth, jakarta.servlet.http.HttpServletRequest request) {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) return null;
+        if (request != null) {
+            Object cached = request.getAttribute("CURRENT_KHACH_HANG_CACHE");
+            if (cached instanceof KhachHang kh) return kh;
+            if (Boolean.TRUE.equals(request.getAttribute("CURRENT_KHACH_HANG_CACHE_NULL"))) return null;
+        }
         TaiKhoan tk = taiKhoanRepository.findByEmail(auth.getName())
                 .or(() -> taiKhoanRepository.findByTenDangNhap(auth.getName()))
                 .orElse(null);
         if (tk == null) return null;
-        return khachHangRepository.findByTaiKhoan(tk).orElse(null);
+        KhachHang kh = khachHangRepository.findByTaiKhoan(tk).orElse(null);
+        if (request != null && kh != null) request.setAttribute("CURRENT_KHACH_HANG_CACHE", kh);
+        return kh;
     }
 
     // CẤP 0: Landing page — Tất cả sản phẩm (hoặc hiển thị kết quả nếu người dùng tìm kiếm / lọc)
@@ -200,7 +207,7 @@ public class ProductController {
 
     // Chi tiết sản phẩm
     @GetMapping("/{id:[0-9]+}")
-    public String productDetail(@PathVariable Integer id, Authentication auth, Model model, RedirectAttributes ra) {
+    public String productDetail(@PathVariable Integer id, Authentication auth, jakarta.servlet.http.HttpServletRequest request, Model model, RedirectAttributes ra) {
         Optional<SanPham> opt = sanPhamService.getById(id);
         if (opt.isEmpty()) {
             if (ra != null) ra.addFlashAttribute("errorMessage", "Sản phẩm không tồn tại!");
@@ -217,12 +224,12 @@ public class ProductController {
             return "redirect:/san-pham";
         }
 
-        KhachHang kh = getCurrentKhachHang(auth);
+        KhachHang kh = getCurrentKhachHang(auth, request);
         boolean isFavorite = false;
         List<Integer> eligibleOrderIds = List.of();
 
         if (kh != null) {
-            userInteractionService.recordView(kh, id);
+            userInteractionService.recordView(kh, sanPham);
             isFavorite = userInteractionService.isFavorite(kh, id);
             eligibleOrderIds = userInteractionService.getEligibleOrderIdsForReview(kh, id);
         }

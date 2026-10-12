@@ -24,7 +24,7 @@ public class SecurityConfig {
     public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
                           CustomOidcUserService customOidcUserService,
                           OAuth2LoginSuccessHandler oauth2LoginSuccessHandler,
-                          CustomAuthenticationFailureHandler customAuthenticationFailureHandler,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) CustomAuthenticationFailureHandler customAuthenticationFailureHandler,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           JwtLogoutSuccessHandler jwtLogoutSuccessHandler) {
         this.customOAuth2UserService = customOAuth2UserService;
@@ -85,7 +85,7 @@ public class SecurityConfig {
                 .loginPage("/login")
                 .loginProcessingUrl("/process-login")
                 .successHandler(oauth2LoginSuccessHandler)
-                .failureHandler(customAuthenticationFailureHandler)
+                .failureHandler(customAuthenticationFailureHandler != null ? customAuthenticationFailureHandler : new org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler("/login?error=true"))
                 .permitAll()
             )
             .oauth2Login(oauth2 -> oauth2

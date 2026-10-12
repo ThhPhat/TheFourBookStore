@@ -12,15 +12,15 @@ public class DanhGia {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer maDanhGia;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKH", nullable = false)
     private KhachHang khachHang;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maSP", nullable = false)
     private SanPham sanPham;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maDH", nullable = false)
     private DonHang donHang;
     
@@ -34,5 +34,6 @@ public class DanhGia {
     private String trangThai = "HienThi";
 
     @OneToMany(mappedBy = "danhGia", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 30)
     private java.util.List<DanhGiaMedia> mediaList = new java.util.ArrayList<>();
 }

@@ -14,16 +14,23 @@ public class PhieuNhap {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer maPN;
 
-    @ManyToOne
-    @JoinColumn(name = "maNCC", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ma_shop")
+    private Shop shop;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "maNCC", nullable = true)
     private NhaCungCap nhaCungCap;
 
-    @ManyToOne
-    @JoinColumn(name = "maNV", nullable = false)
+    @Column(name = "nha_cung_cap_ten", length = 255)
+    private String nhaCungCapTen;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "maNV", nullable = true)
     private NhanVien nhanVien;
 
-    @ManyToOne
-    @JoinColumn(name = "maKho", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "maKho", nullable = true)
     private Kho kho;
 
     @Column(nullable = false)
@@ -35,6 +42,6 @@ public class PhieuNhap {
     @Column(length = 500)
     private String ghiChu;
 
-    @OneToMany(mappedBy = "phieuNhap")
+    @OneToMany(mappedBy = "phieuNhap", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChiTietPhieuNhap> chiTietPhieuNhaps;
 }

@@ -7,6 +7,8 @@
     <header th:replace="~{fragments/common/navbar :: common_navbar('vendor')}"></header>
 
     <main class="w-full pt-28 pb-16 flex-1 max-w-7xl mx-auto px-4 md:px-8">
+        <nav th:replace="~{fragments/vendor/vendor_nav :: vendor_navbar('dashboard')}"></nav>
+
         <!-- Shop Header Bar -->
         <div class="bg-surface-container-lowest p-6 rounded-3xl shadow-sm border border-surface-container mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
@@ -144,33 +146,47 @@
         </div>
 
         <!-- Quick Access Menu Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <a th:href="@{/vendor/products}" class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-4 group">
-                <span class="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">library_books</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <a th:href="@{/vendor/products}" class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-3 group">
+                <span class="p-2.5 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">library_books</span>
                 <div>
-                    <h3 class="font-bold text-sm text-on-surface">Quản Lý Sách</h3>
-                    <p class="text-xs text-on-surface-variant">Thêm, sửa, cập nhật kho</p>
+                    <h3 class="font-bold text-sm text-on-surface">Sản Phẩm</h3>
+                    <p class="text-[11px] text-on-surface-variant">Thêm, sửa sách</p>
                 </div>
             </a>
-            <a th:href="@{/vendor/orders}" class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-4 group">
-                <span class="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">orders</span>
+            <a th:href="@{/vendor/imports}" class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-3 group">
+                <span class="p-2.5 rounded-2xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all material-symbols-outlined">input</span>
                 <div>
-                    <h3 class="font-bold text-sm text-on-surface">Quản Lý Đơn Hàng</h3>
-                    <p class="text-xs text-on-surface-variant">Xử lý 7 trạng thái đơn</p>
+                    <h3 class="font-bold text-sm text-on-surface">Nhập Hàng</h3>
+                    <p class="text-[11px] text-on-surface-variant">Thêm tồn kho &amp; giá vốn</p>
                 </div>
             </a>
-            <a th:href="@{/vendor/promotions}" class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-4 group">
-                <span class="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">confirmation_number</span>
+            <a th:href="@{/vendor/inventory}" class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-3 group">
+                <span class="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all material-symbols-outlined">fact_check</span>
                 <div>
-                    <h3 class="font-bold text-sm text-on-surface">Voucher Của Shop</h3>
-                    <p class="text-xs text-on-surface-variant">Tạo mã giảm giá riêng</p>
+                    <h3 class="font-bold text-sm text-on-surface">Kiểm Kê Kho</h3>
+                    <p class="text-[11px] text-on-surface-variant">Tự cân bằng tồn kho</p>
                 </div>
             </a>
-            <a th:href="@{/vendor/profile}" class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-4 group">
-                <span class="p-3 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">store</span>
+            <a th:href="@{/vendor/orders}" class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-3 group">
+                <span class="p-2.5 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">orders</span>
                 <div>
-                    <h3 class="font-bold text-sm text-on-surface">Hồ Sơ &amp; Banner</h3>
-                    <p class="text-xs text-on-surface-variant">Trang trí trang chủ shop</p>
+                    <h3 class="font-bold text-sm text-on-surface">Đơn Hàng</h3>
+                    <p class="text-[11px] text-on-surface-variant">Xử lý đơn giao</p>
+                </div>
+            </a>
+            <a th:href="@{/vendor/promotions}" class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-3 group">
+                <span class="p-2.5 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">confirmation_number</span>
+                <div>
+                    <h3 class="font-bold text-sm text-on-surface">Voucher Shop</h3>
+                    <p class="text-[11px] text-on-surface-variant">Tạo mã giảm giá</p>
+                </div>
+            </a>
+            <a th:href="@{/vendor/profile}" class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container hover:shadow-md transition-all flex items-center gap-3 group">
+                <span class="p-2.5 rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all material-symbols-outlined">store</span>
+                <div>
+                    <h3 class="font-bold text-sm text-on-surface">Hồ Sơ &amp; Shop</h3>
+                    <p class="text-[11px] text-on-surface-variant">Trang trí gian hàng</p>
                 </div>
             </a>
         </div>

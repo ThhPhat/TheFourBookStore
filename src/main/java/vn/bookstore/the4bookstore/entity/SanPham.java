@@ -19,15 +19,15 @@ public class SanPham {
     @Column(nullable = false, length = 200)
     private String tenSP;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maDanhMuc", nullable = false)
     private DanhMuc danhMuc;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maNXB")
     private NhaXuatBan nhaXuatBan;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maNCC")
     private NhaCungCap nhaCungCap;
     
@@ -64,6 +64,7 @@ public class SanPham {
     @OneToMany(mappedBy = "sanPham", fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @org.hibernate.annotations.BatchSize(size = 50)
     private List<SanPhamTacGia> sanPhamTacGias = new java.util.ArrayList<>();
 
     public String getDanhSachTacGia() {

@@ -89,20 +89,20 @@
                             </div>
                         </div>
 
-                        <!-- Card 4: Sắp / Hết hàng -->
+                        <!-- Card 4: Tổng đầu sách trên sàn -->
                         <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm border border-surface-container/60 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-2">
-                                <span class="font-label-sm text-label-sm font-semibold uppercase text-on-surface-variant tracking-wider">Cảnh Báo Tồn Kho</span>
-                                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-[20px]">warning</span>
+                                <span class="font-label-sm text-label-sm font-semibold uppercase text-on-surface-variant tracking-wider">Tổng Đầu Sách</span>
+                                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
                                 </div>
                             </div>
                             <div>
-                                <div class="font-headline-xl text-headline-xl font-bold text-secondary tabular-nums"
-                                     th:text="${(lowStockCount != null ? lowStockCount : 0) + (outOfStockCount != null ? outOfStockCount : 0)}">
+                                <div class="font-headline-xl text-headline-xl font-bold text-on-surface tabular-nums"
+                                     th:text="${totalBooksCount != null ? totalBooksCount : 0}">
                                     0
                                 </div>
-                                <span class="text-xs text-on-surface-variant mt-1 block">Mặt hàng cần bổ sung gấp</span>
+                                <span class="text-xs text-on-surface-variant mt-1 block">Đang phân phối bởi các gian hàng</span>
                             </div>
                         </div>
 
@@ -147,7 +147,7 @@
                                 <p class="font-body-sm text-body-sm text-on-surface-variant">Danh sách các sản phẩm có số lượng bán cao nhất trên sàn</p>
                             </div>
                             <a th:href="@{/admin/books}" class="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-                                <span>Xem toàn bộ kho</span>
+                                <span>Xem tất cả sản phẩm</span>
                                 <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                             </a>
                         </div>
