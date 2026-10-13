@@ -43,7 +43,8 @@ public class AdminUserController {
     private final ShopRepository shopRepository;
     private final PasswordEncoder passwordEncoder;
     private final org.springframework.security.core.session.SessionRegistry sessionRegistry;
-    private final SecurityAuditService securityAuditService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SecurityAuditService securityAuditService;
 
     private boolean isSuperAdmin(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) return false;
@@ -146,9 +147,13 @@ public class AdminUserController {
 
         if (willLock) {
             invalidateUserSessions(tk);
-            securityAuditService.logAccountLocked(tk.getTenDangNhap(), auth != null ? auth.getName() : "SYSTEM");
+            if (securityAuditService != null) {
+                securityAuditService.logAccountLocked(tk.getTenDangNhap(), auth != null ? auth.getName() : "SYSTEM");
+            }
         } else {
-            securityAuditService.logAccountUnlocked(tk.getTenDangNhap(), auth != null ? auth.getName() : "SYSTEM");
+            if (securityAuditService != null) {
+                securityAuditService.logAccountUnlocked(tk.getTenDangNhap(), auth != null ? auth.getName() : "SYSTEM");
+            }
         }
 
         String msg = willLock ? "Đã KHÓA tài khoản @" + tk.getTenDangNhap() + " thành công (đã hủy phiên đăng nhập nếu có)!" : "Đã MỞ KHÓA tài khoản @" + tk.getTenDangNhap() + " thành công!";
@@ -190,7 +195,9 @@ public class AdminUserController {
         // Tăng tokenVersion để buộc người dùng đăng nhập lại với quyền mới
         tk.setTokenVersion(tk.getTokenVersion() == null ? 1 : tk.getTokenVersion() + 1);
         taiKhoanRepository.save(tk);
-        securityAuditService.logRoleChange(tk.getTenDangNhap(), oldRole, upperRole, auth != null ? auth.getName() : "SYSTEM");
+        if (securityAuditService != null) {
+            securityAuditService.logRoleChange(tk.getTenDangNhap(), oldRole, upperRole, auth != null ? auth.getName() : "SYSTEM");
+        }
 
         // Tự động đồng bộ / tạo hồ sơ Nhân viên (NhanVien) chỉ khi là vai trò nhân viên kho
         if ("NHANVIENKHO".equals(upperRole)) {

@@ -17,7 +17,7 @@ public class CustomAuthenticationFailureHandler extends SimpleUrlAuthenticationF
 
     private final SecurityAuditService securityAuditService;
 
-    public CustomAuthenticationFailureHandler(SecurityAuditService securityAuditService) {
+    public CustomAuthenticationFailureHandler(@org.springframework.beans.factory.annotation.Autowired(required = false) SecurityAuditService securityAuditService) {
         super("/login?error=true");
         this.securityAuditService = securityAuditService;
     }
@@ -32,10 +32,14 @@ public class CustomAuthenticationFailureHandler extends SimpleUrlAuthenticationF
                 || (exception.getCause() instanceof LockedException)
                 || (exception.getCause() instanceof DisabledException)
                 || (exception.getMessage() != null && (exception.getMessage().contains("locked") || exception.getMessage().contains("disabled") || exception.getMessage().contains("khóa")))) {
-            securityAuditService.logLoginFailure(username, ip, "Tài khoản bị khóa hoặc vô hiệu hóa");
+            if (securityAuditService != null) {
+                securityAuditService.logLoginFailure(username, ip, "Tài khoản bị khóa hoặc vô hiệu hóa");
+            }
             getRedirectStrategy().sendRedirect(request, response, "/login?locked=true");
         } else {
-            securityAuditService.logLoginFailure(username, ip, "Sai thông tin đăng nhập");
+            if (securityAuditService != null) {
+                securityAuditService.logLoginFailure(username, ip, "Sai thông tin đăng nhập");
+            }
             getRedirectStrategy().sendRedirect(request, response, "/login?error=true");
         }
     }
