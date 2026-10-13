@@ -38,12 +38,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @Controller
 @RequestMapping("/admin")
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'QUANLY')")
 public class AdminController {
 
     private final SanPhamRepository sanPhamRepository;
