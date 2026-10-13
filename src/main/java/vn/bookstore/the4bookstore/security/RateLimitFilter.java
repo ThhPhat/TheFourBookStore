@@ -44,17 +44,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        String ipAddress = getClientIp(request);
+        String method = request.getMethod();
 
-        if ("/process-login".equals(path)) {
-            if (!isAllowed(loginAttempts, ipAddress, LOGIN_TIME_WINDOW, LOGIN_MAX_REQUESTS)) {
-                sendRateLimitError(response, "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau.");
-                return;
-            }
-        } else if ("/forgot-password".equals(path) || "/resend-otp".equals(path) || "/reset-password".equals(path)) {
-            if (!isAllowed(otpAttempts, ipAddress, OTP_TIME_WINDOW, OTP_MAX_REQUESTS)) {
-                sendRateLimitError(response, "Quá nhiều yêu cầu OTP. Vui lòng thử lại sau.");
-                return;
+        if ("POST".equalsIgnoreCase(method)) {
+            String ipAddress = getClientIp(request);
+            if ("/process-login".equals(path)) {
+                if (!isAllowed(loginAttempts, ipAddress, LOGIN_TIME_WINDOW, LOGIN_MAX_REQUESTS)) {
+                    sendRateLimitError(response, "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau.");
+                    return;
+                }
+            } else if ("/forgot-password".equals(path) || "/resend-otp".equals(path) || "/reset-password".equals(path)) {
+                if (!isAllowed(otpAttempts, ipAddress, OTP_TIME_WINDOW, OTP_MAX_REQUESTS)) {
+                    sendRateLimitError(response, "Quá nhiều yêu cầu OTP. Vui lòng thử lại sau.");
+                    return;
+                }
             }
         }
 

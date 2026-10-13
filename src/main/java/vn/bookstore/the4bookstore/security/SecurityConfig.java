@@ -83,6 +83,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/api/webhooks/**", "/don-hang/api/**", "/ws/**"))
             .authorizeHttpRequests(auth -> auth
                 // Phân quyền cho Vendor Portal
+                .requestMatchers("/vendor/register", "/vendor/register/**", "/vendor/pending", "/vendor/blocked").authenticated()
                 .requestMatchers("/vendor", "/vendor/**").hasAnyRole("VENDOR", "ADMIN", "MANAGER")
                 // Phân quyền cho Quản trị Admin & Manager
                 .requestMatchers("/admin/platform-fees", "/admin/platform-fees/**").hasAnyRole("ADMIN", "QUANLY", "MANAGER")

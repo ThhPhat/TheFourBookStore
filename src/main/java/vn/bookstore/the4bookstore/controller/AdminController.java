@@ -90,9 +90,14 @@ public class AdminController {
         this.donHangRepository = donHangRepository;
     }
 
-    // ==================== DASHBOARD ====================
     @GetMapping({"", "/"})
     public String adminRoot() {
+        return "redirect:/admin/dashboard";
+    }
+
+    @GetMapping("/publishers")
+    public String publishers(RedirectAttributes ra) {
+        ra.addFlashAttribute("infoMessage", "Quản lý nhà xuất bản đã được tích hợp vào hệ thống.");
         return "redirect:/admin/dashboard";
     }
 

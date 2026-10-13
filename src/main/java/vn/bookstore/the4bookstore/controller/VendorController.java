@@ -42,7 +42,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @Controller
 @RequestMapping("/vendor")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('VENDOR', 'ADMIN', 'MANAGER')")
 public class VendorController {
 
     private final ShopService shopService;
