@@ -178,6 +178,16 @@
         .btn-primary { --bs-btn-bg: var(--bs-primary); --bs-btn-border-color: var(--bs-primary); --bs-btn-hover-bg: #166534; --bs-btn-hover-border-color: #166534; }
         .table { --bs-table-bg: transparent; }
 
+        /* Đảm bảo tương phản icon và text khi hover/active/click đè lên Bootstrap !important */
+        .group:hover .group-hover\:text-on-primary,
+        .group:active .group-hover\:text-on-primary,
+        .group:focus .group-hover\:text-on-primary,
+        .group:hover .group-hover\:text-white,
+        .group:active .group-hover\:text-white,
+        .group:focus .group-hover\:text-white {
+            color: #ffffff !important;
+        }
+
         /* Smooth transitions for sidebar toggle */
         aside#admin-sidebar {
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
