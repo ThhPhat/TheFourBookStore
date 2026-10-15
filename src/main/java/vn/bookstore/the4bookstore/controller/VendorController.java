@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @Slf4j
 @Controller
 @RequestMapping("/vendor")
@@ -261,7 +263,7 @@ public class VendorController {
         if (redirect != null) return redirect;
 
         Page<SanPham> productPage = vendorService.getShopProducts(shop.getMaShop(), keyword, 
-                PageRequest.of(page, 10, Sort.by(Sort.Direction.DESC, "maSP")));
+                PageRequest.of(page, 12, Sort.by(Sort.Direction.DESC, "maSP")));
         model.addAttribute("shop", shop);
         model.addAttribute("products", productPage.getContent());
         model.addAttribute("page", productPage);
@@ -523,6 +525,20 @@ public class VendorController {
         model.addAttribute("page", orderPage);
         model.addAttribute("currentStatus", status);
         return "vendor/orders";
+    }
+
+    @PostMapping("/orders/{id}/confirm-payment")
+    public String confirmPayment(Authentication auth, @PathVariable Integer id, RedirectAttributes redirectAttributes) {
+        Shop shop = getCurrentShop(auth);
+        String redirect = checkShopAccess(shop);
+        if (redirect != null) return redirect;
+        try {
+            vendorService.xacNhanThanhToan(id, shop.getMaShop());
+            redirectAttributes.addFlashAttribute("successMessage", "Đã xác nhận thanh toán thành công cho đơn hàng #" + id);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+        return "redirect:/vendor/orders";
     }
 
     @PostMapping("/orders/{id}/confirm")

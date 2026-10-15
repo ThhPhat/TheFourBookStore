@@ -1,6 +1,7 @@
 package vn.bookstore.the4bookstore.component;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import vn.bookstore.the4bookstore.entity.*;
@@ -9,6 +10,7 @@ import vn.bookstore.the4bookstore.repository.*;
 import java.time.LocalDateTime;
 
 @Component
+@ConditionalOnProperty(name = "app.seeder.enabled", havingValue = "true", matchIfMissing = false)
 public class DataSeeder implements CommandLineRunner {
 
     private final TaiKhoanRepository taiKhoanRepository;
