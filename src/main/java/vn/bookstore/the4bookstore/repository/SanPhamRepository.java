@@ -20,21 +20,22 @@ import java.util.Optional;
 
 public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
 
-    @Query(value = "SELECT * FROM san_pham WHERE masp = :id FOR UPDATE", nativeQuery = true)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM SanPham s WHERE s.maSP = :id")
     Optional<SanPham> findByIdWithLock(@Param("id") Integer id);
 
     @Modifying
     @Query(value = "UPDATE san_pham SET so_luong_ton = so_luong_ton + :soLuong WHERE masp = :maSP", nativeQuery = true)
     int increaseStock(@Param("maSP") Integer maSP, @Param("soLuong") Integer soLuong);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     Optional<SanPham> findById(Integer id);
 
     Optional<SanPham> findByISBN(String ISBN);
     Optional<SanPham> findByISBNAndShop_MaShop(String ISBN, Integer maShop);
     boolean existsByISBN(String ISBN);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"danhMuc", "nhaXuatBan", "nhaCungCap"})
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"danhMuc"})
     List<SanPham> findAll();
     
     List<SanPham> findTop8ByTrangThaiOrderByNgayTaoDesc(String trangThai);
@@ -47,7 +48,7 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
            "ORDER BY s.ngayTao DESC")
     List<SanPham> findTopBooksByTrangThai(@Param("trangThai") String trangThai, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE (LOWER(s.loaiSP) = 'sach' OR s.loaiSP IS NULL) " +
            "AND s.trangThai IN :trangThais " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
@@ -65,6 +66,7 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
                                                       @Param("categoryIds") List<Integer> categoryIds,
                                                       Pageable pageable);
 
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE (LOWER(s.loaiSP) = 'sach' OR s.loaiSP IS NULL) " +
            "AND s.danhMuc.maDanhMuc IN :categoryIds " +
            "AND s.trangThai IN :trangThais " +
@@ -80,7 +82,7 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     List<SanPham> findTop4ByLoaiSPAndTrangThai(@Param("loaiSP") String loaiSP, @Param("trangThai") String trangThai);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.loaiSP = :loaiSP AND s.trangThai IN :trangThais " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
@@ -91,7 +93,7 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     Page<SanPham> findByLoaiSPAndTrangThai(@Param("loaiSP") String loaiSP, @Param("trangThai") String trangThai, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.loaiSP = :loaiSP AND s.trangThai IN :trangThais " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
@@ -102,32 +104,30 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     Page<SanPham> findByLoaiSPAndDanhMucAndTrangThai(@Param("loaiSP") String loaiSP, @Param("danhMuc") DanhMuc danhMuc, @Param("trangThai") String trangThai, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.loaiSP = :loaiSP AND s.danhMuc = :danhMuc AND s.trangThai IN :trangThais " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     Page<SanPham> findByLoaiSPAndDanhMucAndTrangThaiIn(@Param("loaiSP") String loaiSP, @Param("danhMuc") DanhMuc danhMuc, @Param("trangThais") Collection<String> trangThais, Pageable pageable);
 
-    @Query("SELECT DISTINCT s FROM SanPham s LEFT JOIN s.nhaXuatBan nxb " +
+    @Query("SELECT DISTINCT s FROM SanPham s " +
            "WHERE s.loaiSP = :loaiSP AND s.trangThai IN ('DangBan', 'HetHang') " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') " +
            "AND (LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(s.ISBN) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "OR LOWER(nxb.tenNXB) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR EXISTS (SELECT 1 FROM SanPhamTacGia sptg WHERE sptg.sanPham = s AND LOWER(sptg.tacGia.tenTacGia) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
     Page<SanPham> searchByLoaiSPAndKeyword(@Param("loaiSP") String loaiSP,
                                             @Param("keyword") String keyword,
                                             Pageable pageable);
 
-    @Query("SELECT DISTINCT s FROM SanPham s LEFT JOIN s.nhaXuatBan nxb " +
+    @Query("SELECT DISTINCT s FROM SanPham s " +
            "WHERE s.loaiSP = :loaiSP AND s.trangThai IN ('DangBan', 'HetHang') " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') " +
            "AND s.danhMuc.maDanhMuc = :maDanhMuc " +
            "AND (LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(s.ISBN) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "OR LOWER(nxb.tenNXB) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR EXISTS (SELECT 1 FROM SanPhamTacGia sptg WHERE sptg.sanPham = s AND LOWER(sptg.tacGia.tenTacGia) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
     Page<SanPham> searchByLoaiSPAndDanhMucAndKeyword(@Param("loaiSP") String loaiSP,
                                                       @Param("maDanhMuc") Integer maDanhMuc,
@@ -140,29 +140,27 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     Page<SanPham> findByTrangThai(@Param("trangThai") String trangThai, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.trangThai IN :trangThais " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     Page<SanPham> findByTrangThaiIn(@Param("trangThais") Collection<String> trangThais, Pageable pageable);
 
-    @Query("SELECT DISTINCT s FROM SanPham s LEFT JOIN s.nhaXuatBan nxb " +
+    @Query("SELECT DISTINCT s FROM SanPham s " +
            "WHERE s.trangThai IN ('DangBan', 'HetHang') " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') AND (" +
            "LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(s.ISBN) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(nxb.tenNXB) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "EXISTS (SELECT 1 FROM SanPhamTacGia sptg WHERE sptg.sanPham = s AND LOWER(sptg.tacGia.tenTacGia) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
     Page<SanPham> searchAllByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT DISTINCT s FROM SanPham s LEFT JOIN s.nhaXuatBan nxb " +
+    @Query("SELECT DISTINCT s FROM SanPham s " +
            "WHERE s.trangThai IN ('DangBan', 'HetHang') AND s.danhMuc.maDanhMuc = :maDanhMuc " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') AND (" +
            "LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "LOWER(s.ISBN) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(nxb.tenNXB) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
            "EXISTS (SELECT 1 FROM SanPhamTacGia sptg WHERE sptg.sanPham = s AND LOWER(sptg.tacGia.tenTacGia) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
     Page<SanPham> searchAllByDanhMucAndKeyword(@Param("keyword") String keyword,
                                                @Param("maDanhMuc") Integer maDanhMuc,
@@ -173,7 +171,7 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
     Page<SanPham> findByDanhMucAndTrangThai(@Param("danhMuc") DanhMuc danhMuc, @Param("trangThai") String trangThai, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.danhMuc = :danhMuc AND s.trangThai IN :trangThais " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
            "AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong')")
@@ -184,18 +182,17 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
 
     long countByDanhMuc_MaDanhMuc(Integer maDanhMuc);
 
-    long countByNhaXuatBan_MaNXB(Integer maNXB);
-
-    @Query(value = "SELECT fn_DemSanPhamSapHet()", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM san_pham WHERE so_luong_ton <= muc_ton_toi_thieu AND trang_thai = 'DangBan'", nativeQuery = true)
     long countLowStock();
 
-    @Query(value = "SELECT fn_DemSanPhamHetHang()", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) FROM san_pham WHERE so_luong_ton = 0 AND trang_thai = 'DangBan'", nativeQuery = true)
     long countOutOfStock();
 
-    @Query(value = "SELECT fn_TinhDiemDanhGiaSanPham(:maSP)", nativeQuery = true)
+    // ====================================================================
+    // ĐỀ TÀI DBMS330284: GỌI USER-DEFINED FUNCTION (UDF) TỪ SQL SERVER
+    // ====================================================================
+    @Query(value = "SELECT fn_TinhDiemDanhGiaTrungBinh(:maSP)", nativeQuery = true)
     Double getAverageRatingByProductId(@Param("maSP") Integer maSP);
-
-    List<SanPham> findByNhaXuatBan_MaNXB(Integer maNXB);
 
     @Query("SELECT sptg.sanPham FROM SanPhamTacGia sptg WHERE sptg.tacGia.maTacGia = :maTacGia")
     List<SanPham> findBooksByTacGiaId(@Param("maTacGia") Integer maTacGia);
@@ -203,13 +200,10 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     @Query("SELECT DISTINCT s FROM SanPham s JOIN s.sanPhamTacGias sptg WHERE sptg.tacGia.maTacGia = :maTacGia AND s.trangThai IN ('DangBan', 'HetHang')")
     Page<SanPham> findByTacGiaId(@Param("maTacGia") Integer maTacGia, Pageable pageable);
 
-    Page<SanPham> findByNhaXuatBan_MaNXBAndTrangThai(Integer maNXB, String trangThai, Pageable pageable);
-    Page<SanPham> findByNhaXuatBan_MaNXBAndTrangThaiIn(Integer maNXB, Collection<String> trangThais, Pageable pageable);
-
     // --- MARKETPLACE QUERIES ---
 
     // --- SPOTLIGHT ALGORITHM CANDIDATES ---
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE (LOWER(s.loaiSP) = 'sach' OR s.loaiSP IS NULL) " +
            "AND s.trangThai = 'DangBan' " +
            "AND (s.trangThaiKhoa = 'BinhThuong' OR s.trangThaiKhoa IS NULL) " +
@@ -219,17 +213,17 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     List<SanPham> findSpotlightCandidates(Pageable pageable);
 
     // 1. Dành cho Guest: Sản phẩm bán trên 10 sản phẩm, sắp xếp giảm dần theo lượt bán
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.soLuongDaBan > 10 AND s.trangThai = 'DangBan' AND s.trangThaiKhoa = 'BinhThuong' AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') ORDER BY s.soLuongDaBan DESC")
     List<SanPham> findTopProductsForGuest();
 
     // 2. Dành cho User: 20 sản phẩm mới nhất
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.trangThai = 'DangBan' AND s.trangThaiKhoa = 'BinhThuong' AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') AND (:maDanhMuc IS NULL OR s.danhMuc.maDanhMuc = :maDanhMuc) ORDER BY s.ngayTao DESC")
     Page<SanPham> findTop20Newest(@Param("maDanhMuc") Integer maDanhMuc, Pageable pageable);
 
     // 3. Dành cho User: 20 sản phẩm bán chạy nhất
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.trangThai = 'DangBan' AND s.trangThaiKhoa = 'BinhThuong' AND (s.shop IS NULL OR s.shop.trangThai = 'HoatDong') AND (:maDanhMuc IS NULL OR s.danhMuc.maDanhMuc = :maDanhMuc) ORDER BY s.soLuongDaBan DESC")
     Page<SanPham> findTop20BestSelling(@Param("maDanhMuc") Integer maDanhMuc, Pageable pageable);
 
@@ -257,6 +251,16 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     @Query("SELECT s FROM SanPham s WHERE s.shop.maShop = :maShop AND s.trangThai != 'DaXoa' AND LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     Page<SanPham> findActiveByShopAndKeyword(@Param("maShop") Integer maShop, @Param("keyword") String keyword, Pageable pageable);
 
+    @Query("SELECT s FROM SanPham s WHERE s.shop.maShop = :maShop AND s.trangThai != 'DaXoa' " +
+           "AND (:keyword IS NULL OR :keyword = '' OR LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(s.ISBN) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:maDanhMuc IS NULL OR s.danhMuc.maDanhMuc = :maDanhMuc) " +
+           "AND (:loaiSP IS NULL OR :loaiSP = '' OR LOWER(s.loaiSP) = LOWER(:loaiSP))")
+    Page<SanPham> filterShopProducts(@Param("maShop") Integer maShop,
+                                     @Param("keyword") String keyword,
+                                     @Param("maDanhMuc") Integer maDanhMuc,
+                                     @Param("loaiSP") String loaiSP,
+                                     Pageable pageable);
+
     @Query("SELECT COUNT(s) FROM SanPham s WHERE s.shop.maShop = :maShop AND s.trangThai != 'DaXoa'")
     long countActiveByShop(@Param("maShop") Integer maShop);
 
@@ -265,11 +269,11 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     List<SanPham> findAllActiveOrderByMaSPDesc();
 
     // 8. Dành cho Shop Storefront: Sản phẩm đang bán của shop (ưu tiên bán chạy nhất)
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.shop.maShop = :maShop AND s.trangThai = 'DangBan' AND s.trangThaiKhoa = 'BinhThuong' AND s.shop.trangThai = 'HoatDong' ORDER BY s.soLuongDaBan DESC, s.ngayTao DESC")
     Page<SanPham> findActiveBooksByShop(@Param("maShop") Integer maShop, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"danhMuc", "shop", "nhaXuatBan"})
+    @EntityGraph(attributePaths = {"danhMuc", "shop"})
     @Query("SELECT s FROM SanPham s WHERE s.shop.maShop = :maShop AND s.trangThai = 'DangBan' AND s.trangThaiKhoa = 'BinhThuong' AND s.shop.trangThai = 'HoatDong' AND LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY s.soLuongDaBan DESC, s.ngayTao DESC")
     Page<SanPham> findActiveBooksByShopAndKeyword(@Param("maShop") Integer maShop, @Param("keyword") String keyword, Pageable pageable);
 
@@ -291,13 +295,4 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
                                           Pageable pageable);
 
     long countByShop_MaShopAndTrangThaiKhoa(Integer maShop, String trangThaiKhoa);
-
-    @Query("SELECT s FROM SanPham s WHERE s.nhaCungCap.maNCC = :maNCC AND s.trangThai != 'DaXoa' ORDER BY s.tenSP ASC")
-    List<SanPham> findByNhaCungCapId(@Param("maNCC") Integer maNCC);
-
-    @Query("SELECT s FROM SanPham s WHERE s.trangThai != 'DaXoa' " +
-           "AND (:maNCC IS NULL OR s.nhaCungCap IS NULL OR s.nhaCungCap.maNCC != :maNCC) " +
-           "AND (:keyword IS NULL OR :keyword = '' OR LOWER(s.tenSP) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(s.ISBN) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-           "ORDER BY s.tenSP ASC")
-    List<SanPham> findAvailableBooksForSupplier(@Param("maNCC") Integer maNCC, @Param("keyword") String keyword, Pageable pageable);
 }

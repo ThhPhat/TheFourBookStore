@@ -37,7 +37,6 @@ class VendorControllerTest {
     @MockitoBean private VendorService vendorService;
     @MockitoBean private TaiKhoanRepository taiKhoanRepository;
     @MockitoBean private DanhMucRepository danhMucRepository;
-    @MockitoBean private NhaXuatBanRepository nhaXuatBanRepository;
     @MockitoBean private TacGiaRepository tacGiaRepository;
     @MockitoBean private vn.bookstore.the4bookstore.service.CloudinaryService cloudinaryService;
 
@@ -50,6 +49,7 @@ class VendorControllerTest {
     @MockitoBean private CustomOAuth2UserService customOAuth2UserService;
     @MockitoBean private CustomOidcUserService customOidcUserService;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
     private TaiKhoan mockUser;
 
@@ -87,7 +87,7 @@ class VendorControllerTest {
 
     @Test
     @WithMockUser(username = "customer", roles = {"KHACHHANG"})
-    @DisplayName("Khách hàng đã có shop đang hoạt động truy cập GET /vendor/register sẽ chuyển hướng về dashboard")
+    @DisplayName("Khách hàng đã có shop (HoatDong) truy cập GET /vendor/register sẽ chuyển hướng về dashboard")
     void testRegisterForm_AlreadyHasShop_RedirectsToDashboard() throws Exception {
         Shop existingShop = new Shop();
         existingShop.setMaShop(1);
@@ -106,6 +106,7 @@ class VendorControllerTest {
         Shop newShop = new Shop();
         newShop.setMaShop(2);
         newShop.setTenShop("Nhà Sách Mới");
+        newShop.setTrangThai("ChoDuyet");
         when(shopService.registerShop(any(), anyString(), any(), anyString(), anyString(), anyString())).thenReturn(newShop);
 
         mockMvc.perform(post("/vendor/register")
@@ -124,8 +125,8 @@ class VendorControllerTest {
 
     @Test
     @WithMockUser(username = "customer", roles = {"VENDOR"})
-    @DisplayName("Vendor tự nhập NXB khi lưu sách thành công")
-    void testSaveProduct_WithCustomPublisher() throws Exception {
+    @DisplayName("Vendor lưu sản phẩm thành công")
+    void testSaveProduct_Success() throws Exception {
         Shop shop = new Shop();
         shop.setMaShop(1);
         shop.setTrangThai("HoatDong");
@@ -133,15 +134,14 @@ class VendorControllerTest {
 
         mockMvc.perform(post("/vendor/products/save")
                         .with(csrf())
-                        .param("tenSP", "Sách Thử Nghiệm Tự Nhập NXB")
+                        .param("tenSP", "Sách Thử Nghiệm Mới")
                         .param("giaBan", "150000")
-                        .param("soLuongTon", "20")
-                        .param("tenNXB", "NXB Tri Thức Trẻ"))
+                        .param("soLuongTon", "20"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/vendor/products"))
                 .andExpect(flash().attributeExists("successMessage"));
 
-        verify(vendorService, times(1)).saveShopProduct(eq(1), any(), any(), any(), eq("NXB Tri Thức Trẻ"), any());
+        verify(vendorService, times(1)).saveShopProduct(eq(1), any(), any(), isNull());
     }
 
     @Test
@@ -158,12 +158,11 @@ class VendorControllerTest {
                         .param("tenSP", "Đắc Nhân Tâm")
                         .param("giaBan", "120000")
                         .param("soLuongTon", "50")
-                        .param("tenNXB", "NXB Trẻ")
                         .param("tenTacGia", "Dale Carnegie"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/vendor/products"))
                 .andExpect(flash().attributeExists("successMessage"));
 
-        verify(vendorService, times(1)).saveShopProduct(eq(1), any(), any(), any(), eq("NXB Trẻ"), eq("Dale Carnegie"));
+        verify(vendorService, times(1)).saveShopProduct(eq(1), any(), any(), eq("Dale Carnegie"));
     }
 }

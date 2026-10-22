@@ -37,12 +37,10 @@ class AdminUserAndImportExportTest {
 
     @MockitoBean private TaiKhoanRepository taiKhoanRepository;
     @MockitoBean private KhachHangRepository khachHangRepository;
-    @MockitoBean private NhanVienRepository nhanVienRepository;
     @MockitoBean private ShopRepository shopRepository;
     @MockitoBean private SanPhamRepository sanPhamRepository;
     @MockitoBean private DonHangRepository donHangRepository;
     @MockitoBean private DanhMucRepository danhMucRepository;
-    @MockitoBean private NhaXuatBanRepository nhaXuatBanRepository;
     @MockitoBean private PasswordEncoder passwordEncoder;
 
     @MockitoBean private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -51,6 +49,7 @@ class AdminUserAndImportExportTest {
     @MockitoBean private CustomOAuth2UserService customOAuth2UserService;
     @MockitoBean private CustomOidcUserService customOidcUserService;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
     @BeforeEach
     void setUp() throws Exception {

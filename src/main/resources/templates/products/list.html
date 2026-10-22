@@ -18,6 +18,12 @@
                 <span class="text-primary font-semibold" th:text="${groupName}">Sách</span>
             </div>
 
+            <!-- Flash Message Cảnh Báo (Sản phẩm bị khóa / tạm ngừng) -->
+            <div th:if="${errorMessage}" class="mb-space-md p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-sm font-semibold flex items-center gap-3 shadow-xs">
+                <span class="material-symbols-outlined text-[24px] text-amber-600 shrink-0">info</span>
+                <span th:text="${errorMessage}">Sản phẩm này hiện đang tạm ngừng kinh doanh hoặc gian hàng đang bị tạm khóa!</span>
+            </div>
+
             <!-- Page header -->
             <div class="flex flex-col md:flex-row md:items-center justify-between mb-space-lg gap-space-sm">
                 <div>
@@ -85,7 +91,7 @@
                         <span class="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant pointer-events-none">search</span>
                         <input type="text" name="q" th:value="${keyword}"
                                class="w-full bg-surface-container-low pl-9 pr-space-md py-2.5 rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary/40 border border-transparent"
-                               placeholder="Tìm theo tên sản phẩm, tác giả, NXB, ISBN..."/>
+                               placeholder="Tìm theo tên sản phẩm, ISBN..."/>
                     </div>
                     <!-- Dropdown: Danh mục cấp 1 (khi ở trang /san-pham) -->
                     <select th:if="${baseUrl == '/san-pham'}" name="loaiSP" id="filterLoaiSP" onchange="onCategoryGroupChange(this.value)"
@@ -127,10 +133,9 @@
                         </option>
                     </select>
 
-                    <!-- Container Tác giả & NXB (Chỉ dành cho Sách) -->
-                    <div id="authorPublisherGroup" class="flex items-center gap-space-sm flex-wrap"
-                         th:classappend="${loaiSP != 'Sach'} ? ' hidden' : ''">
-                        <!-- Dropdown: Tác giả -->
+                    <!-- Container Tác giả (Chỉ hiển thị cho Danh mục Sách) -->
+                    <div id="authorGroup" class="flex items-center gap-space-sm flex-wrap"
+                         th:classappend="${!#strings.equalsIgnoreCase(loaiSP, 'Sach')} ? ' hidden' : ''">
                         <select th:if="${authors != null && !#lists.isEmpty(authors)}" name="tacGia" id="filterTacGia"
                                 class="bg-surface-container-low text-on-surface text-sm px-space-md py-2.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/40 border border-transparent cursor-pointer min-w-[140px]">
                             <option value="0" th:selected="${selectedTacGia == null || selectedTacGia == 0}">Tất cả tác giả</option>
@@ -138,15 +143,6 @@
                                     th:value="${tg.maTacGia}"
                                     th:text="${tg.tenTacGia}"
                                     th:selected="${selectedTacGia != null && selectedTacGia == tg.maTacGia}">Tác giả</option>
-                        </select>
-                        <!-- Dropdown: NXB -->
-                        <select th:if="${publishers != null && !#lists.isEmpty(publishers)}" name="nxb" id="filterNxb"
-                                class="bg-surface-container-low text-on-surface text-sm px-space-md py-2.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/40 border border-transparent cursor-pointer min-w-[140px]">
-                            <option value="0" th:selected="${selectedNxb == null || selectedNxb == 0}">Tất cả NXB</option>
-                            <option th:each="pub : ${publishers}"
-                                    th:value="${pub.maNXB}"
-                                    th:text="${pub.tenNXB}"
-                                    th:selected="${selectedNxb != null && selectedNxb == pub.maNXB}">NXB</option>
                         </select>
                     </div>
 
@@ -193,7 +189,7 @@
                                         <span>Đối tác</span>
                                     </span>
                                 </div>
-                                <p class="text-xs text-on-surface-variant line-clamp-1 mt-0.5" th:text="${shop.moTa ?: 'Gian hàng sách uy tín liên kết sàn The4BookStore'}">Mô tả</p>
+                                <p class="text-xs text-on-surface-variant line-clamp-1 mt-0.5" th:text="${shop.moTa ?: 'Gian hàng uy tín liên kết sàn The4BookStore'}">Mô tả</p>
                                 <div class="flex items-center gap-3 text-[11px] text-on-surface-variant mt-1">
                                     <span th:if="${shop.diaChiShop}" class="flex items-center gap-0.5 truncate max-w-[180px]">
                                         <span class="material-symbols-outlined text-[13px] text-primary">location_on</span>
@@ -225,7 +221,7 @@
 
             <div th:unless="${#lists.isEmpty(products)}" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-space-md">
                 <th:block th:each="book : ${products}">
-                    <div th:replace="~{fragments/common/book_card :: book_card(${book})}"></div>
+                    <div th:replace="~{fragments/common/product_card :: product_card(${book})}"></div>
                 </th:block>
             </div>
 
@@ -257,9 +253,6 @@
         function onCategoryGroupChange(group, isInit) {
             const catSelect = document.getElementById('filterDanhMuc');
             const defaultCatOpt = document.getElementById('defaultCatOption');
-            const authorPubGroup = document.getElementById('authorPublisherGroup');
-            const tacGiaSelect = document.getElementById('filterTacGia');
-            const nxbSelect = document.getElementById('filterNxb');
 
             if (!catSelect || !defaultCatOpt) return;
 
@@ -285,13 +278,6 @@
                     opt.style.display = 'none';
                     opt.selected = false;
                 });
-
-                // Ẩn nhóm tác giả & NXB
-                if (authorPubGroup) {
-                    authorPubGroup.classList.add('hidden');
-                }
-                if (tacGiaSelect) tacGiaSelect.value = '0';
-                if (nxbSelect) nxbSelect.value = '0';
             } else {
                 // 2. Đã chọn danh mục -> Mở khóa dropdown loại sản phẩm và lọc options tương ứng
                 catSelect.disabled = false;
@@ -322,16 +308,17 @@
                     catSelect.value = '0';
                     defaultCatOpt.selected = true;
                 }
+            }
 
-                // 3. Tác giả & NXB chỉ hiển thị khi chọn Danh mục Sách
-                if (authorPubGroup) {
-                    if (group === 'Sach') {
-                        authorPubGroup.classList.remove('hidden');
-                    } else {
-                        authorPubGroup.classList.add('hidden');
-                        if (tacGiaSelect) tacGiaSelect.value = '0';
-                        if (nxbSelect) nxbSelect.value = '0';
-                    }
+            // 3. Tác giả chỉ hiển thị khi chọn Danh mục Sách
+            const authorGroup = document.getElementById('authorGroup');
+            const tacGiaSelect = document.getElementById('filterTacGia');
+            if (authorGroup) {
+                if (group === 'Sach') {
+                    authorGroup.classList.remove('hidden');
+                } else {
+                    authorGroup.classList.add('hidden');
+                    if (tacGiaSelect) tacGiaSelect.value = '0';
                 }
             }
         }

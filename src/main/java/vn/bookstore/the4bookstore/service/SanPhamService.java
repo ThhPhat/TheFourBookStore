@@ -16,7 +16,6 @@ import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
-@RequiredArgsConstructor
 public class SanPhamService {
 
     public static final List<String> CUSTOMER_STATUSES = List.of("DangBan", "HetHang");
@@ -28,6 +27,23 @@ public class SanPhamService {
     private final DanhGiaRepository danhGiaRepository;
     private final SanPhamTacGiaRepository sanPhamTacGiaRepository;
     private final SanPhamYeuThichRepository sanPhamYeuThichRepository;
+
+    public SanPhamService(
+            SanPhamRepository sanPhamRepository,
+            DanhMucRepository danhMucRepository,
+            ChiTietDonHangRepository chiTietDonHangRepository,
+            ChiTietGioHangRepository chiTietGioHangRepository,
+            DanhGiaRepository danhGiaRepository,
+            SanPhamTacGiaRepository sanPhamTacGiaRepository,
+            SanPhamYeuThichRepository sanPhamYeuThichRepository) {
+        this.sanPhamRepository = sanPhamRepository;
+        this.danhMucRepository = danhMucRepository;
+        this.chiTietDonHangRepository = chiTietDonHangRepository;
+        this.chiTietGioHangRepository = chiTietGioHangRepository;
+        this.danhGiaRepository = danhGiaRepository;
+        this.sanPhamTacGiaRepository = sanPhamTacGiaRepository;
+        this.sanPhamYeuThichRepository = sanPhamYeuThichRepository;
+    }
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -57,74 +73,13 @@ public class SanPhamService {
      */
     @Cacheable("book_of_the_month")
     public SanPham getBookOfTheMonth() {
-        List<SanPham> candidates = sanPhamRepository.findSpotlightCandidates(PageRequest.of(0, 15));
-        if (candidates.isEmpty()) {
-            Pageable p = PageRequest.of(0, 1);
-            List<SanPham> fallbackList = sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, p);
-            return fallbackList.isEmpty() ? null : fallbackList.get(0);
+        List<SanPham> candidates = sanPhamRepository.findSpotlightCandidates(PageRequest.of(0, 1));
+        if (!candidates.isEmpty()) {
+            return candidates.get(0);
         }
-
-        java.time.LocalDateTime thirtyDaysAgo = java.time.LocalDateTime.now().minusDays(30);
-        java.time.LocalDateTime ninetyDaysAgo = java.time.LocalDateTime.now().minusDays(90);
-
-        SanPham bestBook = null;
-        double maxScore = -1.0;
-
-        for (SanPham book : candidates) {
-            long recentSales = 0;
-            try {
-                Long rs = chiTietDonHangRepository.countSoldQuantitySince(book.getMaSP(), thirtyDaysAgo);
-                if (rs != null) recentSales = rs;
-            } catch (Exception ignored) {}
-
-            long totalSold = book.getSoLuongDaBan() != null ? book.getSoLuongDaBan() : 0;
-
-            Double avgRating = 5.0;
-            long reviewCount = 0;
-            try {
-                Double r = danhGiaRepository.findAverageRatingBySanPham(book);
-                if (r != null) avgRating = r;
-                reviewCount = danhGiaRepository.countBySanPhamAndTrangThai(book, "HienThi");
-            } catch (Exception ignored) {}
-
-            long favorites = 0;
-            try {
-                if (sanPhamYeuThichRepository != null) {
-                    favorites = sanPhamYeuThichRepository.countBySanPham(book);
-                }
-            } catch (Exception ignored) {}
-
-            double recencyBonus = 0.0;
-            if (book.getNgayTao() != null) {
-                if (book.getNgayTao().isAfter(thirtyDaysAgo)) {
-                    recencyBonus = 25.0;
-                } else if (book.getNgayTao().isAfter(ninetyDaysAgo)) {
-                    recencyBonus = 10.0;
-                }
-            }
-
-            // Điểm đánh giá: Điểm sao kết hợp độ tin cậy log(reviewCount)
-            double ratingScore = avgRating * Math.log(1.0 + reviewCount + 1.0);
-
-            // Công thức trọng số đa tiêu chí
-            double score = (recentSales * 25.0)
-                         + (totalSold * 2.0)
-                         + (ratingScore * 4.0)
-                         + (favorites * 3.0)
-                         + recencyBonus;
-
-            // Ưu tiên sách có hình ảnh thực tế
-            if (book.getHinhAnh() != null && !book.getHinhAnh().isBlank()) {
-                score += 5.0;
-            }
-
-            if (score > maxScore) {
-                maxScore = score;
-                bestBook = book;
-            }
-        }
-
-        return bestBook != null ? bestBook : candidates.get(0);
+        Pageable p = PageRequest.of(0, 1);
+        List<SanPham> fallbackList = sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, p);
+        return fallbackList.isEmpty() ? null : fallbackList.get(0);
     }
 
     @Cacheable("home_featured_books")
@@ -236,7 +191,6 @@ public class SanPhamService {
             String keyword,
             Integer maDanhMuc,
             Integer maTacGia,
-            Integer maNXB,
             String sortBy,
             int page,
             int size) {
@@ -247,11 +201,20 @@ public class SanPhamService {
         if (maTacGia != null && maTacGia > 0) {
             return sanPhamRepository.findByTacGiaId(maTacGia, pageable);
         }
-        if (maNXB != null && maNXB > 0) {
-            return sanPhamRepository.findByNhaXuatBan_MaNXBAndTrangThaiIn(maNXB, CUSTOMER_STATUSES, pageable);
-        }
 
         return searchAndFilter(loaiSP, keyword, maDanhMuc, sortBy, page, size);
+    }
+
+    public Page<SanPham> searchAndFilter(
+            String loaiSP,
+            String keyword,
+            Integer maDanhMuc,
+            Integer maTacGia,
+            Integer maNXB,
+            String sortBy,
+            int page,
+            int size) {
+        return searchAndFilter(loaiSP, keyword, maDanhMuc, maTacGia, sortBy, page, size);
     }
 
     public Page<SanPham> searchAndFilterByGroup(
@@ -265,7 +228,17 @@ public class SanPhamService {
     }
 
     public Optional<SanPham> getById(Integer id) {
-        return sanPhamRepository.findById(id);
+        Optional<SanPham> opt = sanPhamRepository.findById(id);
+        opt.ifPresent(sp -> {
+            if (sp.getSanPhamTacGias() != null) {
+                sp.getSanPhamTacGias().forEach(sptg -> {
+                    if (sptg != null && sptg.getTacGia() != null) {
+                        sptg.getTacGia().getTenTacGia();
+                    }
+                });
+            }
+        });
+        return opt;
     }
 
     public List<SanPham> getRelatedBooks(SanPham sanPham, int limit) {
