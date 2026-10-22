@@ -17,8 +17,10 @@ public class DonHang {
     @Column(nullable = false)
     private LocalDateTime ngayDat = LocalDateTime.now();
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKH", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private KhachHang khachHang;
     
     @Column(nullable = false, length = 20)
@@ -28,12 +30,23 @@ public class DonHang {
     @Column(nullable = false)
     private Integer tongTien = 0;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maKM")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private KhuyenMai khuyenMai;
     
     @Column(nullable = false)
-    private Integer tienGiam = 0;
+    private Integer tienGiam = 0; // Giảm giá sản phẩm (ORDER_DISCOUNT)
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ma_km_freeship")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private KhuyenMai khuyenMaiFreeship;
+
+    @Column(name = "tien_giam_freeship", nullable = false)
+    private Integer tienGiamFreeship = 0; // Giảm giá phí ship (SHIPPING_DISCOUNT)
     @Column(nullable = false, length = 30)
     private String trangThai = "ChoXuLy";
     @Column(length = 500)
@@ -48,10 +61,14 @@ public class DonHang {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ma_shop")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Shop shop;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ma_nvc")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private NhaVanChuyen nhaVanChuyen;
 
     @Column(name = "phi_van_chuyen", nullable = false)
@@ -80,8 +97,12 @@ public class DonHang {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "nguoi_xu_ly_tranh_chap")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private TaiKhoan nguoiXuLyTranhChap;
 
     @OneToMany(mappedBy = "donHang", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<ChiTietDonHang> chiTietDonHangs;
 }

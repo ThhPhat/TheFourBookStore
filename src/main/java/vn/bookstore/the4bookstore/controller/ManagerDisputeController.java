@@ -3,6 +3,7 @@ package vn.bookstore.the4bookstore.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,9 +24,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @Controller
-@RequestMapping("/admin")
+@RequestMapping({"/admin", "/manager"})
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('MANAGER', 'QUANLY', 'ADMIN')")
 public class ManagerDisputeController {
 
     private final ShopService shopService;
@@ -43,10 +47,11 @@ public class ManagerDisputeController {
     // --- QUẢN LÝ CỬA HÀNG (SHOPS MANAGEMENT) ---
     @GetMapping("/shops")
     public String shopsList(@RequestParam(required = false) String keyword,
+                            @RequestParam(required = false, defaultValue = "all") String searchType,
                             @RequestParam(defaultValue = "0") int page,
                             Model model) {
         Page<Shop> shopPage = (keyword != null && !keyword.isBlank())
-                ? shopService.searchShops(keyword, PageRequest.of(page, 10))
+                ? shopService.searchShopsByCriteria(keyword, searchType, PageRequest.of(page, 10))
                 : shopService.getAllShops(PageRequest.of(page, 10));
 
         Map<Integer, Long> productCounts = new HashMap<>();
@@ -57,7 +62,9 @@ public class ManagerDisputeController {
         model.addAttribute("shops", shopPage.getContent());
         model.addAttribute("productCounts", productCounts);
         model.addAttribute("page", shopPage);
-        model.addAttribute("keyword", keyword);
+        model.addAttribute("keyword", keyword != null ? keyword : "");
+        model.addAttribute("searchType", searchType != null ? searchType : "all");
+        model.addAttribute("pendingShopCount", shopService.getPendingShops().size());
         return "admin/shops";
     }
 
@@ -66,6 +73,17 @@ public class ManagerDisputeController {
         try {
             shopService.duyetShop(id);
             redirectAttributes.addFlashAttribute("successMessage", "Đã duyệt và kích hoạt gian hàng #" + id);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+        return "redirect:/admin/shops";
+    }
+
+    @PostMapping("/shops/{id}/reject")
+    public String rejectShop(@PathVariable Integer id, RedirectAttributes redirectAttributes) {
+        try {
+            shopService.tuChoiShop(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã từ chối đơn đăng ký gian hàng #" + id);
         } catch (Exception ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
@@ -122,7 +140,9 @@ public class ManagerDisputeController {
     @GetMapping("/shops/{id}/products")
     public String shopProducts(@PathVariable Integer id,
                                @RequestParam(required = false) String keyword,
+                               @RequestParam(required = false, defaultValue = "all") String searchType,
                                @RequestParam(required = false, defaultValue = "all") String moderationStatus,
+                               @RequestParam(required = false, defaultValue = "newest") String sortBy,
                                @RequestParam(defaultValue = "0") int page,
                                Model model) {
         Shop shop = shopService.findById(id)
@@ -130,8 +150,20 @@ public class ManagerDisputeController {
 
         String modStatus = (moderationStatus != null && !moderationStatus.isBlank() && !"all".equalsIgnoreCase(moderationStatus)) ? moderationStatus.trim() : null;
         String kw = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        String sType = (searchType != null && !searchType.isBlank()) ? searchType.trim() : "all";
 
-        Page<SanPham> productPage = sanPhamRepository.findShopProductsForAdmin(id, kw, modStatus, PageRequest.of(page, 10));
+        Sort sort = switch (sortBy != null ? sortBy : "newest") {
+            case "bestseller" -> Sort.by(Sort.Direction.DESC, "soLuongDaBan").and(Sort.by(Sort.Direction.DESC, "maSP"));
+            case "alphabet_asc" -> Sort.by(Sort.Direction.ASC, "tenSP");
+            case "alphabet_desc" -> Sort.by(Sort.Direction.DESC, "tenSP");
+            case "price_asc" -> Sort.by(Sort.Direction.ASC, "giaBan");
+            case "price_desc" -> Sort.by(Sort.Direction.DESC, "giaBan");
+            case "stock_asc" -> Sort.by(Sort.Direction.ASC, "soLuongTon");
+            case "stock_desc" -> Sort.by(Sort.Direction.DESC, "soLuongTon");
+            default -> Sort.by(Sort.Direction.DESC, "maSP");
+        };
+
+        Page<SanPham> productPage = sanPhamRepository.findShopProductsForAdmin(id, kw, sType, modStatus, PageRequest.of(page, 10, sort));
 
         long countAll = sanPhamRepository.countByShop_MaShop(id);
         long countPending = sanPhamRepository.countByShop_MaShopAndTrangThaiKhoa(id, "ChoDuyet");
@@ -142,7 +174,9 @@ public class ManagerDisputeController {
         model.addAttribute("products", productPage.getContent());
         model.addAttribute("page", productPage);
         model.addAttribute("keyword", keyword != null ? keyword : "");
+        model.addAttribute("searchType", sType);
         model.addAttribute("moderationStatus", moderationStatus != null ? moderationStatus : "all");
+        model.addAttribute("sortBy", sortBy != null ? sortBy : "newest");
         model.addAttribute("countAll", countAll);
         model.addAttribute("countPending", countPending);
         model.addAttribute("countActive", countActive);

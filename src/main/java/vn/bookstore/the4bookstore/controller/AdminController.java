@@ -12,21 +12,16 @@ import vn.bookstore.the4bookstore.entity.DanhMuc;
 import vn.bookstore.the4bookstore.entity.SanPham;
 import vn.bookstore.the4bookstore.entity.DonHang;
 import vn.bookstore.the4bookstore.entity.TacGia;
-import vn.bookstore.the4bookstore.entity.NhaXuatBan;
 import vn.bookstore.the4bookstore.entity.SanPhamTacGia;
 import vn.bookstore.the4bookstore.entity.SanPhamTacGiaId;
 import vn.bookstore.the4bookstore.repository.DanhMucRepository;
-import vn.bookstore.the4bookstore.repository.NhaCungCapRepository;
-import vn.bookstore.the4bookstore.repository.NhaXuatBanRepository;
 import vn.bookstore.the4bookstore.repository.SanPhamRepository;
 import vn.bookstore.the4bookstore.repository.DonHangRepository;
 import vn.bookstore.the4bookstore.repository.TacGiaRepository;
 import vn.bookstore.the4bookstore.repository.SanPhamTacGiaRepository;
-import vn.bookstore.the4bookstore.service.KhoService;
 import vn.bookstore.the4bookstore.service.ReportService;
 import vn.bookstore.the4bookstore.service.OrderService;
 import vn.bookstore.the4bookstore.service.TacGiaService;
-import vn.bookstore.the4bookstore.service.NhaXuatBanService;
 import vn.bookstore.the4bookstore.service.SanPhamService;
 import vn.bookstore.the4bookstore.service.CloudinaryService;
 import vn.bookstore.the4bookstore.repository.ShopRepository;
@@ -37,17 +32,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Controller
 @RequestMapping("/admin")
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'QUANLY')")
 public class AdminController {
 
     private final SanPhamRepository sanPhamRepository;
     private final DanhMucRepository danhMucRepository;
-    private final NhaXuatBanRepository nhaXuatBanRepository;
-    private final NhaCungCapRepository nhaCungCapRepository;
     private final TacGiaRepository tacGiaRepository;
     private final SanPhamTacGiaRepository sanPhamTacGiaRepository;
 
@@ -67,8 +64,6 @@ public class AdminController {
 
         public AdminController(SanPhamRepository sanPhamRepository,
                            DanhMucRepository danhMucRepository,
-                           NhaXuatBanRepository nhaXuatBanRepository,
-                           NhaCungCapRepository nhaCungCapRepository,
                            TacGiaRepository tacGiaRepository,
                            SanPhamTacGiaRepository sanPhamTacGiaRepository,
                            ReportService reportService,
@@ -76,8 +71,6 @@ public class AdminController {
                            DonHangRepository donHangRepository) {
         this.sanPhamRepository = sanPhamRepository;
         this.danhMucRepository = danhMucRepository;
-        this.nhaXuatBanRepository = nhaXuatBanRepository;
-        this.nhaCungCapRepository = nhaCungCapRepository;
         this.tacGiaRepository = tacGiaRepository;
         this.sanPhamTacGiaRepository = sanPhamTacGiaRepository;
         this.reportService = reportService;
@@ -85,23 +78,96 @@ public class AdminController {
         this.donHangRepository = donHangRepository;
     }
 
-    // ==================== DASHBOARD ====================
     @GetMapping({"", "/"})
     public String adminRoot() {
         return "redirect:/admin/dashboard";
     }
 
+    @GetMapping("/publishers")
+    public String publishers(RedirectAttributes ra) {
+        ra.addFlashAttribute("infoMessage", "Quản lý nhà xuất bản đã được tích hợp vào hệ thống.");
+        return "redirect:/admin/dashboard";
+    }
+
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
-        model.addAttribute("monthlyRevenue", reportService.getRevenueByMonth());
-        model.addAttribute("topBooks", reportService.getTopSellingBooks());
-        model.addAttribute("monthlyOrders", reportService.getThisMonthOrderCount());
-        model.addAttribute("todayOrders", reportService.getTodayOrderCount());
-        model.addAttribute("totalSold", reportService.getTotalBooksSold());
+        try {
+            model.addAttribute("thisMonthRevenue", reportService.getThisMonthRevenue());
+        } catch (Exception e) {
+            model.addAttribute("thisMonthRevenue", java.math.BigDecimal.ZERO);
+        }
+        try {
+            model.addAttribute("monthlyRevenue", reportService.getRevenueByMonth());
+        } catch (Exception e) {
+            model.addAttribute("monthlyRevenue", java.util.Collections.emptyList());
+        }
+        try {
+            model.addAttribute("topBooks", reportService.getTopSellingBooks());
+        } catch (Exception e) {
+            model.addAttribute("topBooks", java.util.Collections.emptyList());
+        }
+        try {
+            model.addAttribute("monthlyOrders", reportService.getThisMonthOrderCount());
+        } catch (Exception e) {
+            model.addAttribute("monthlyOrders", 0L);
+        }
+        try {
+            model.addAttribute("todayOrders", reportService.getTodayOrderCount());
+        } catch (Exception e) {
+            model.addAttribute("todayOrders", 0L);
+        }
+        try {
+            model.addAttribute("totalSold", reportService.getTotalBooksSold());
+        } catch (Exception e) {
+            model.addAttribute("totalSold", 0L);
+        }
 
-        long totalBooks = sanPhamRepository.count();
-        long lowStock = sanPhamRepository.countLowStock();
-        long outOfStock = sanPhamRepository.countOutOfStock();
+        long totalBooks = 0;
+        try {
+            totalBooks = sanPhamRepository.count();
+        } catch (Exception ignored) {}
+
+        long lowStock = 0;
+        try {
+            Long ls = sanPhamRepository.countLowStock();
+            if (ls != null) lowStock = ls;
+        } catch (Exception ignored) {}
+
+        long outOfStock = 0;
+        try {
+            Long os = sanPhamRepository.countOutOfStock();
+            if (os != null) outOfStock = os;
+        } catch (Exception ignored) {}
+
+        long activeShops = 0;
+        if (shopRepository != null) {
+            try {
+                activeShops = shopRepository.countByTrangThai("HoatDong");
+            } catch (Exception ignored) {}
+        }
+
+        long pendingOrders = 0;
+        try {
+            pendingOrders = donHangRepository.countByTrangThaiIn(java.util.List.of("ChoXuLy", "ChoDuyet", "DonHangMoi", "ChoXacNhan"));
+        } catch (Exception ignored) {}
+
+        // Danh sách sản phẩm mới nhất trên sàn (8 sản phẩm)
+        try {
+            var recentProducts = sanPhamRepository.findAll(
+                PageRequest.of(0, 8, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "ngayTao"))
+            ).getContent();
+            model.addAttribute("recentProducts", recentProducts);
+        } catch (Exception e) {
+            model.addAttribute("recentProducts", java.util.Collections.emptyList());
+        }
+
+        // Danh sách đơn hàng gần đây trên sàn (6 đơn)
+        try {
+            var recentOrders = donHangRepository.findAllByOrderByNgayDatDesc(PageRequest.of(0, 6)).getContent();
+            model.addAttribute("recentOrders", recentOrders);
+        } catch (Exception e) {
+            model.addAttribute("recentOrders", java.util.Collections.emptyList());
+        }
 
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("'Ngày' dd 'tháng' MM, yyyy");
         String formattedDate = LocalDate.now().format(dtf);
@@ -109,6 +175,8 @@ public class AdminController {
         model.addAttribute("totalBooksCount", totalBooks);
         model.addAttribute("lowStockCount", lowStock);
         model.addAttribute("outOfStockCount", outOfStock);
+        model.addAttribute("activeShopsCount", activeShops);
+        model.addAttribute("pendingOrdersCount", pendingOrders);
         model.addAttribute("currentDate", formattedDate);
 
         return "admin/dashboard";
@@ -137,9 +205,9 @@ public class AdminController {
         } else if ("success".equalsIgnoreCase(status) || "DaGiao".equalsIgnoreCase(status) || "HoanTat".equalsIgnoreCase(status)) {
             orderPage = donHangRepository.findByTrangThaiInOrderByNgayDatDesc(
                     java.util.List.of("DaGiao", "HoanTat"), pageable);
-        } else if ("dispute".equalsIgnoreCase(status) || "TranhChap".equalsIgnoreCase(status) || "TraHangHoanTien".equalsIgnoreCase(status)) {
+        } else if ("dispute".equalsIgnoreCase(status) || "TranhChap".equalsIgnoreCase(status) || "TraHangHoanTien".equalsIgnoreCase(status) || "DaHoan".equalsIgnoreCase(status)) {
             orderPage = donHangRepository.findByTrangThaiInOrderByNgayDatDesc(
-                    java.util.List.of("TranhChap", "TraHangHoanTien"), pageable);
+                    java.util.List.of("TranhChap", "TraHangHoanTien", "DaHoan"), pageable);
         } else if ("cancelled".equalsIgnoreCase(status) || "DaHuy".equalsIgnoreCase(status)) {
             orderPage = donHangRepository.findByTrangThaiInOrderByNgayDatDesc(
                     java.util.List.of("DaHuy", "Huy"), pageable);
@@ -154,14 +222,15 @@ public class AdminController {
         long confirmedCount = donHangRepository.countByTrangThaiIn(java.util.List.of("DaXacNhan", "YeuCauHuy"));
         long shippingCount = donHangRepository.countByTrangThaiIn(java.util.List.of("DangGiao", "DaLayHang"));
         long successCount = donHangRepository.countByTrangThaiIn(java.util.List.of("DaGiao", "HoanTat"));
-        long disputeCount = donHangRepository.countByTrangThaiIn(java.util.List.of("TranhChap", "TraHangHoanTien"));
+        long disputeCount = donHangRepository.countByTrangThaiIn(java.util.List.of("TranhChap", "TraHangHoanTien", "DaHoan"));
         long cancelledCount = donHangRepository.countByTrangThaiIn(java.util.List.of("DaHuy", "Huy"));
         
         java.time.LocalDate today = java.time.LocalDate.now();
         java.time.LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
         java.time.LocalDateTime endOfMonth = startOfMonth.plusMonths(1);
         
-        long monthlyOrders = donHangRepository.countByNgayDatBetween(startOfMonth, endOfMonth);
+        Long monthlyOrdersObj = donHangRepository.getOrderCountByDateRange(startOfMonth, endOfMonth);
+        long monthlyOrders = monthlyOrdersObj != null ? monthlyOrdersObj : 0L;
         Long revenueObj = donHangRepository.getRevenueByDateRange(startOfMonth, endOfMonth);
         long monthlyRevenue = revenueObj != null ? revenueObj : 0L;
 
@@ -214,12 +283,10 @@ public class AdminController {
     public ResponseEntity<?> updateOrderStatus(@PathVariable Long id, 
                                                @RequestParam String status,
                                                @RequestParam(value = "reason", required = false) String reason) {
-        try {
-            orderService.updateStatus(id, status, reason);
-            return ResponseEntity.ok(Map.of("success", true));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
-        }
+        return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).body(Map.of(
+                "success", false,
+                "error", "Đơn hàng thuộc quyền quản lý trực tiếp của Vendor. Admin/Manager chỉ theo dõi thống kê và giải quyết tranh chấp (nếu có), không được tự ý can thiệp trạng thái đơn hàng của gian hàng."
+        ));
     }
 
     @GetMapping("/orders/{id}/json")
@@ -278,8 +345,6 @@ public class AdminController {
                     data.put("loaiSP", sp.getLoaiSP() != null ? sp.getLoaiSP() : "Sach");
                     data.put("maDanhMuc", sp.getDanhMuc() != null && sp.getDanhMuc().getMaDanhMuc() != null ? sp.getDanhMuc().getMaDanhMuc() : 0);
                     data.put("tenDanhMuc", sp.getDanhMuc() != null ? sp.getDanhMuc().getTenDanhMuc() : "Chưa phân loại");
-                    data.put("maNXB", sp.getNhaXuatBan() != null && sp.getNhaXuatBan().getMaNXB() != null ? sp.getNhaXuatBan().getMaNXB() : 0);
-                    data.put("tenNXB", sp.getNhaXuatBan() != null ? sp.getNhaXuatBan().getTenNXB() : "Chưa cập nhật");
                     data.put("maTacGia", authorId != null ? authorId : 0);
                     data.put("tenTacGia", sp.getDanhSachTacGia() != null && !sp.getDanhSachTacGia().isBlank() ? sp.getDanhSachTacGia() : "Chưa cập nhật");
                     data.put("maShop", sp.getShop() != null ? sp.getShop().getMaShop() : 1);
@@ -388,7 +453,7 @@ public class AdminController {
     // ==================== QUẢN LÝ TÁC GIẢ (CRUD) ====================
     @GetMapping({"/authors", "/tac-gia"})
     public String authors(Model model) {
-        List<TacGia> authors = tacGiaRepository.findAll();
+        List<TacGia> authors = tacGiaRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "maTacGia"));
         Map<Integer, Long> bookCounts = new HashMap<>();
         for (TacGia tg : authors) {
             bookCounts.put(tg.getMaTacGia(), sanPhamTacGiaRepository.countByTacGia_MaTacGia(tg.getMaTacGia()));
@@ -403,6 +468,7 @@ public class AdminController {
         return "admin/authors";
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "authors", allEntries = true)
     @PostMapping({"/authors/save", "/tac-gia/save"})
     public String saveAuthor(@RequestParam(value = "maTacGia", required = false) Integer maTacGia,
                              @RequestParam("tenTacGia") String tenTacGia,
@@ -426,6 +492,7 @@ public class AdminController {
         return "redirect:/admin/authors";
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "authors", allEntries = true)
     @PostMapping({"/authors/delete/{id}", "/tac-gia/delete/{id}"})
     public String deleteAuthor(@PathVariable Integer id, RedirectAttributes ra) {
         long count = sanPhamTacGiaRepository.countByTacGia_MaTacGia(id);
@@ -468,86 +535,19 @@ public class AdminController {
             map.put("trangThai", b.getTrangThai());
             map.put("hinhAnh", b.getHinhAnh());
             map.put("danhMuc", b.getDanhMuc() != null ? b.getDanhMuc().getTenDanhMuc() : "");
-            map.put("nhaXuatBan", b.getNhaXuatBan() != null ? b.getNhaXuatBan().getTenNXB() : "");
             return map;
         }).toList();
         return ResponseEntity.ok(bookDtos);
     }
 
-    // ==================== QUẢN LÝ NHÀ XUẤT BẢN (CRUD) ====================
-    @GetMapping({"/publishers", "/nha-xuat-ban"})
-    public String publishers(Model model) {
-        List<NhaXuatBan> publishers = nhaXuatBanRepository.findAll();
-        Map<Integer, Long> bookCounts = new HashMap<>();
-        for (NhaXuatBan nxb : publishers) {
-            bookCounts.put(nxb.getMaNXB(), sanPhamRepository.countByNhaXuatBan_MaNXB(nxb.getMaNXB()));
-        }
-        long publishersWithBooks = bookCounts.values().stream().filter(c -> c > 0).count();
-
-        model.addAttribute("publishers", publishers);
-        model.addAttribute("bookCounts", bookCounts);
-        model.addAttribute("totalPublishers", publishers.size());
-        model.addAttribute("publishersWithBooks", publishersWithBooks);
-
-        return "admin/publishers";
+    // ==================== QUẢN LÝ NHÀ CUNG CẤP (Đã chuyển sang mô hình Gian Hàng / Shop) ====================
+    @GetMapping({"/suppliers", "/nha-cung-cap"})
+    public String suppliers(RedirectAttributes ra) {
+        ra.addFlashAttribute("infoMessage", "Hệ thống đã chuyển sang mô hình sàn thương mại điện tử đa gian hàng (Shops/Vendors).");
+        return "redirect:/admin/shops";
     }
 
-    @PostMapping({"/publishers/save", "/nha-xuat-ban/save"})
-    public String savePublisher(@RequestParam(value = "maNXB", required = false) Integer maNXB,
-                                @RequestParam("tenNXB") String tenNXB,
-                                @RequestParam(value = "diaChi", required = false) String diaChi,
-                                @RequestParam(value = "soDienThoai", required = false) String soDienThoai,
-                                @RequestParam(value = "email", required = false) String email,
-                                RedirectAttributes ra) {
-        try {
-            NhaXuatBan nxb;
-            if (maNXB != null && maNXB > 0) {
-                nxb = nhaXuatBanRepository.findById(maNXB).orElse(new NhaXuatBan());
-                ra.addFlashAttribute("successMessage", "Cập nhật nhà xuất bản thành công!");
-            } else {
-                nxb = new NhaXuatBan();
-                ra.addFlashAttribute("successMessage", "Thêm mới nhà xuất bản thành công!");
-            }
-            nxb.setTenNXB(tenNXB.trim());
-            nxb.setDiaChi(diaChi != null ? diaChi.trim() : "");
-            nxb.setSoDienThoai(soDienThoai != null ? soDienThoai.trim() : "");
-            nxb.setEmail(email != null ? email.trim() : "");
-            nhaXuatBanRepository.save(nxb);
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMessage", "Lỗi lưu nhà xuất bản: " + e.getMessage());
-        }
-        return "redirect:/admin/publishers";
-    }
 
-    @PostMapping({"/publishers/delete/{id}", "/nha-xuat-ban/delete/{id}"})
-    public String deletePublisher(@PathVariable Integer id, RedirectAttributes ra) {
-        long count = sanPhamRepository.countByNhaXuatBan_MaNXB(id);
-        if (count > 0) {
-            ra.addFlashAttribute("errorMessage", "Không thể xóa nhà xuất bản này vì đang có " + count + " đầu sách liên kết!");
-            return "redirect:/admin/publishers";
-        }
-        try {
-            nhaXuatBanRepository.deleteById(id);
-            ra.addFlashAttribute("successMessage", "Đã xóa nhà xuất bản thành công!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMessage", "Không thể xóa nhà xuất bản: " + e.getMessage());
-        }
-        return "redirect:/admin/publishers";
-    }
-
-    @GetMapping({"/publishers/{id}/json", "/nha-xuat-ban/{id}/json"})
-    @ResponseBody
-    public ResponseEntity<?> getPublisherJson(@PathVariable Integer id) {
-        return nhaXuatBanRepository.findById(id)
-                .map(nxb -> ResponseEntity.ok(Map.of(
-                        "maNXB", nxb.getMaNXB(),
-                        "tenNXB", nxb.getTenNXB(),
-                        "diaChi", nxb.getDiaChi() != null ? nxb.getDiaChi() : "",
-                        "soDienThoai", nxb.getSoDienThoai() != null ? nxb.getSoDienThoai() : "",
-                        "email", nxb.getEmail() != null ? nxb.getEmail() : ""
-                )))
-                .orElse(ResponseEntity.notFound().build());
-    }
 
     @GetMapping("/api/notifications")
     @ResponseBody

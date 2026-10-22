@@ -1,5 +1,7 @@
 package vn.bookstore.the4bookstore.controller;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -7,6 +9,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import vn.bookstore.the4bookstore.entity.*;
 import vn.bookstore.the4bookstore.repository.*;
@@ -14,36 +17,52 @@ import vn.bookstore.the4bookstore.security.CustomOAuth2User;
 import vn.bookstore.the4bookstore.security.CustomOidcUser;
 import vn.bookstore.the4bookstore.security.CustomUserDetails;
 import vn.bookstore.the4bookstore.service.DonHangService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Optional;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Controller
 @RequestMapping("/don-hang")
 public class OrderController {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
+
+    @Value("${vietqr.webhook-secret:}")
+    private String webhookSecret;
 
     private final DonHangService donHangService;
     private final KhachHangRepository khachHangRepository;
     private final TaiKhoanRepository taiKhoanRepository;
     private final DonHangRepository donHangRepository;
     private final ThanhToanRepository thanhToanRepository;
-    private final vn.bookstore.the4bookstore.service.VNPayService vnPayService;
+    private final vn.bookstore.the4bookstore.service.VietQRService vietQRService;
+    private final ShopRepository shopRepository;
 
     public OrderController(DonHangService donHangService,
                            KhachHangRepository khachHangRepository,
                            TaiKhoanRepository taiKhoanRepository,
                            DonHangRepository donHangRepository,
                            ThanhToanRepository thanhToanRepository,
-                           vn.bookstore.the4bookstore.service.VNPayService vnPayService) {
+                           vn.bookstore.the4bookstore.service.VietQRService vietQRService,
+                           ShopRepository shopRepository) {
         this.donHangService = donHangService;
         this.khachHangRepository = khachHangRepository;
         this.taiKhoanRepository = taiKhoanRepository;
         this.donHangRepository = donHangRepository;
         this.thanhToanRepository = thanhToanRepository;
-        this.vnPayService = vnPayService;
+        this.vietQRService = vietQRService;
+        this.shopRepository = shopRepository;
     }
 
     // ==================== Helper: Lấy TaiKhoan từ Authentication ====================
@@ -111,6 +130,19 @@ public class OrderController {
             kh.setNgayDangKy(LocalDateTime.now());
             return khachHangRepository.save(kh);
         });
+    }
+
+    private Shop getCurrentShop(Authentication authentication) {
+        TaiKhoan tk = getCurrentTaiKhoan(authentication);
+        if (tk == null) return null;
+        Optional<Shop> userShop = shopRepository.findByTaiKhoan(tk);
+        if (userShop.isPresent()) {
+            return userShop.get();
+        }
+        if ("ADMIN".equalsIgnoreCase(tk.getVaiTro()) || "MANAGER".equalsIgnoreCase(tk.getVaiTro()) || "QUANLY".equalsIgnoreCase(tk.getVaiTro())) {
+            return shopRepository.findById(1).orElse(null);
+        }
+        return null;
     }
 
     // ==================== Lịch sử đơn hàng ====================
@@ -195,6 +227,17 @@ public class OrderController {
             model.addAttribute("khachHang", kh);
             model.addAttribute("thanhToan", thanhToanRepository.findFirstByDonHangOrderByMaThanhToanDesc(donHang).orElse(null));
 
+            if (("ChuyenKhoan".equalsIgnoreCase(donHang.getPhuongThucThanhToan()) || "VIETQR".equalsIgnoreCase(donHang.getPhuongThucThanhToan()))
+                    && !"DaThanhToan".equalsIgnoreCase(donHang.getTrangThaiThanhToan())
+                    && !"DaHuy".equalsIgnoreCase(donHang.getTrangThai())
+                    && !"Huy".equalsIgnoreCase(donHang.getTrangThai())) {
+                int amount = donHang.getTongTien() != null ? donHang.getTongTien() : 0;
+                model.addAttribute("vietQrUrl", vietQRService.generateQrUrl(donHang.getMaDH(), amount));
+                model.addAttribute("bankId", vietQRService.getBankId());
+                model.addAttribute("accountNo", vietQRService.getAccountNo());
+                model.addAttribute("accountName", vietQRService.getAccountName());
+            }
+
             return "order/detail";
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(OrderController.class).error("Lỗi khi xem chi tiết đơn hàng #{}: {}", id, e.getMessage());
@@ -219,6 +262,11 @@ public class OrderController {
             if (!dh.getKhachHang().getMaKH().equals(kh.getMaKH())) {
                 redirectAttributes.addFlashAttribute("errorMessage", "Bạn không có quyền can thiệp vào đơn hàng này!");
                 return "redirect:/don-hang";
+            }
+
+            if ("DaGiao".equalsIgnoreCase(dh.getTrangThai()) || "HoanTat".equalsIgnoreCase(dh.getTrangThai())) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Đơn hàng đã giao thành công không thể hủy. Vui lòng chọn 'Yêu cầu Trả hàng - Hoàn tiền' nếu bạn muốn hoàn hàng!");
+                return "redirect:/don-hang/" + id;
             }
 
             if ("DaXacNhan".equalsIgnoreCase(dh.getTrangThai())) {
@@ -289,15 +337,20 @@ public class OrderController {
         DonHang dh = donHangService.getOrderById(id);
         if (!dh.getKhachHang().getMaKH().equals(kh.getMaKH())) return "redirect:/don-hang";
 
-        if (!"DaGiao".equalsIgnoreCase(dh.getTrangThai())) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Chỉ có thể yêu cầu Trả hàng - Hoàn tiền với đơn hàng đã giao thành công!");
+        if ("ChoXuLy".equalsIgnoreCase(dh.getTrangThai()) || "DonHangMoi".equalsIgnoreCase(dh.getTrangThai()) || "ChoDuyet".equalsIgnoreCase(dh.getTrangThai())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Đơn hàng chưa được xác nhận, vui lòng sử dụng chức năng Hủy đơn thay vì Yêu cầu Hoàn hàng!");
+            return "redirect:/don-hang/" + id;
+        }
+
+        if ("DaHuy".equalsIgnoreCase(dh.getTrangThai()) || "Huy".equalsIgnoreCase(dh.getTrangThai()) || "DaHoan".equalsIgnoreCase(dh.getTrangThai())) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Đơn hàng đã kết thúc không thể yêu cầu hoàn hàng!");
             return "redirect:/don-hang/" + id;
         }
 
         dh.setTrangThai("TraHangHoanTien");
         dh.setLyDoTraHang(lyDoTraHang != null ? lyDoTraHang.trim() : "Khách hàng yêu cầu đổi trả");
         donHangRepository.save(dh);
-        redirectAttributes.addFlashAttribute("successMessage", "Yêu cầu Trả hàng - Hoàn tiền đã gửi đến Shop thành công!");
+        redirectAttributes.addFlashAttribute("successMessage", "Yêu cầu Trả hàng - Hoàn tiền đã gửi đến hệ thống xử lý thành công!");
         return "redirect:/don-hang/" + id;
     }
 
@@ -322,47 +375,167 @@ public class OrderController {
         return "redirect:/don-hang/" + id;
     }
 
-    // ==================== Callback VNPay Return ====================
-    @GetMapping("/vnpay-return")
-    public String vnpayReturn(jakarta.servlet.http.HttpServletRequest request, RedirectAttributes redirectAttributes) {
-        Map<String, String> fields = new HashMap<>();
-        for (java.util.Enumeration<String> params = request.getParameterNames(); params.hasMoreElements();) {
-            String fieldName = params.nextElement();
-            String fieldValue = request.getParameter(fieldName);
-            if ((fieldValue != null) && (!fieldValue.isEmpty())) {
-                fields.put(fieldName, fieldValue);
+    // ==================== Khách báo "Tôi đã chuyển khoản" ====================
+    @PostMapping("/{id}/bao-da-chuyen-tien")
+    public String reportPaid(@PathVariable("id") Integer id,
+                             Authentication authentication,
+                             RedirectAttributes redirectAttributes) {
+        KhachHang kh = getCurrentKhachHang(authentication);
+        if (kh == null) return "redirect:/login";
+
+        DonHang dh = donHangService.getOrderById(id);
+        if (!dh.getKhachHang().getMaKH().equals(kh.getMaKH())) return "redirect:/don-hang";
+
+        if ("ChoThanhToan".equalsIgnoreCase(dh.getTrangThai()) || "ChoXuLy".equalsIgnoreCase(dh.getTrangThai())) {
+            dh.setTrangThaiThanhToan("ChoDuyetThanhToan");
+            donHangRepository.save(dh);
+            redirectAttributes.addFlashAttribute("successMessage", "Hệ thống đã ghi nhận thông báo chuyển tiền của bạn. Nhân viên / Shop sẽ đối soát và xử lý đơn ngay!");
+        }
+        return "redirect:/don-hang/" + id;
+    }
+
+    // ==================== Quản lý/Admin/Shop xác nhận đã nhận tiền ====================
+    @PostMapping("/{id}/xac-nhan-thanh-toan")
+    public String confirmPaymentByShop(@PathVariable("id") Integer id,
+                                       Authentication authentication,
+                                       jakarta.servlet.http.HttpServletRequest request,
+                                       RedirectAttributes redirectAttributes) {
+        boolean isStaff = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                        || a.getAuthority().equals("ROLE_MANAGER")
+                        || a.getAuthority().equals("ROLE_QUANLY")
+                        || a.getAuthority().equals("ROLE_VENDOR")
+                        || a.getAuthority().equals("ROLE_GIAN_HANG"));
+
+        if (!isStaff) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Bạn không có quyền thực hiện thao tác này!");
+            return "redirect:/don-hang/" + id;
+        }
+
+        DonHang dh = donHangService.getOrderById(id);
+
+        boolean isAdminOrManager = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                        || a.getAuthority().equals("ROLE_MANAGER")
+                        || a.getAuthority().equals("ROLE_QUANLY"));
+
+        if (!isAdminOrManager) {
+            Shop currentShop = getCurrentShop(authentication);
+            if (currentShop == null || dh.getShop() == null || !dh.getShop().getMaShop().equals(currentShop.getMaShop())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xác nhận thanh toán cho đơn hàng của shop khác!");
             }
         }
 
-        String orderIdStr = fields.get("vnp_TxnRef");
-        String responseCode = fields.get("vnp_ResponseCode");
-        boolean checkSignature = vnPayService.verifyCallback(fields);
+        dh.setTrangThaiThanhToan("DaThanhToan");
+        if ("ChoThanhToan".equalsIgnoreCase(dh.getTrangThai())) {
+            dh.setTrangThai("ChoXuLy");
+        }
+        ThanhToan tt = thanhToanRepository.findFirstByDonHangOrderByMaThanhToanDesc(dh).orElse(null);
+        if (tt != null) {
+            tt.setTrangThai("ThanhCong");
+            thanhToanRepository.save(tt);
+        }
+        donHangRepository.save(dh);
+        redirectAttributes.addFlashAttribute("successMessage", "Đã xác nhận thanh toán thành công cho đơn hàng #TB-" + id + "!");
+        
+        String referer = request.getHeader("Referer");
+        if (referer != null && referer.contains("/admin/orders/")) {
+            return "redirect:/admin/orders/" + id;
+        }
+        return "redirect:/don-hang/" + id;
+    }
 
-        if (orderIdStr != null) {
-            try {
-                int maDH = Integer.parseInt(orderIdStr);
-                DonHang dh = donHangService.getOrderById(maDH);
+    // ==================== API Kiểm tra trạng thái thanh toán Realtime (Polling) ====================
+    @GetMapping("/api/{id}/trang-thai-thanh-toan")
+    @ResponseBody
+    public ResponseEntity<?> checkPaymentStatus(@PathVariable("id") Integer id) {
+        try {
+            DonHang dh = donHangService.getOrderById(id);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("maDH", dh.getMaDH());
+            resp.put("trangThai", dh.getTrangThai());
+            resp.put("trangThaiThanhToan", dh.getTrangThaiThanhToan());
+            resp.put("paid", "DaThanhToan".equalsIgnoreCase(dh.getTrangThaiThanhToan()));
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 
-                if (checkSignature && "00".equals(responseCode)) {
+    private boolean verifyWebhookSignature(HttpServletRequest request, String body) {
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            logger.warn("VietQR webhook secret not configured - accepting without verification");
+            return true;
+        }
+        String signature = request.getHeader("X-Webhook-Signature");
+        if (signature == null) return false;
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            String computed = Base64.getEncoder().encodeToString(mac.doFinal(body.getBytes(StandardCharsets.UTF_8)));
+            return MessageDigest.isEqual(computed.getBytes(), signature.getBytes());
+        } catch (Exception e) {
+            logger.error("Webhook signature verification failed", e);
+            return false;
+        }
+    }
+
+    // ==================== Webhook Ngân hàng / Casso / SePAY ====================
+    @PostMapping({"/api/vietqr-webhook", "/api/webhooks/vietqr"})
+    @ResponseBody
+    public ResponseEntity<?> vietQrWebhook(HttpServletRequest request, @RequestBody(required = false) String rawBody) {
+        try {
+            if (rawBody == null || rawBody.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Empty payload"));
+            }
+
+            if (!verifyWebhookSignature(request, rawBody)) {
+                logger.warn("VietQR webhook signature verification failed from IP: {}", request.getRemoteAddr());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("success", false, "message", "Invalid signature"));
+            }
+
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            Map<String, Object> payload = mapper.readValue(rawBody, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            
+            logger.info("Received VietQR webhook from IP {}: {}", request.getRemoteAddr(), payload);
+
+            // Hỗ trợ trích xuất nội dung từ Casso / SePAY / Webhook ngân hàng
+            String content = "";
+            int transferAmount = 0;
+
+            if (payload.containsKey("content")) content = payload.get("content").toString();
+            else if (payload.containsKey("description")) content = payload.get("description").toString();
+            else if (payload.containsKey("addInfo")) content = payload.get("addInfo").toString();
+
+            if (payload.containsKey("transferAmount")) transferAmount = ((Number) payload.get("transferAmount")).intValue();
+            else if (payload.containsKey("amount")) transferAmount = ((Number) payload.get("amount")).intValue();
+
+            // Tìm mã đơn hàng từ nội dung chuyển khoản (Ví dụ: "DH102" hoặc "DH 102")
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("(?i)DH\\s*(\\d+)");
+            java.util.regex.Matcher matcher = pattern.matcher(content);
+
+            if (matcher.find()) {
+                int orderId = Integer.parseInt(matcher.group(1));
+                DonHang dh = donHangRepository.findById(orderId).orElse(null);
+
+                if (dh != null) {
                     dh.setTrangThaiThanhToan("DaThanhToan");
+                    if ("ChoThanhToan".equalsIgnoreCase(dh.getTrangThai())) {
+                        dh.setTrangThai("ChoXuLy");
+                    }
                     ThanhToan tt = thanhToanRepository.findFirstByDonHangOrderByMaThanhToanDesc(dh).orElse(null);
                     if (tt != null) {
                         tt.setTrangThai("ThanhCong");
                         thanhToanRepository.save(tt);
                     }
                     donHangRepository.save(dh);
-                    redirectAttributes.addFlashAttribute("successMessage", "Thanh toán trực tuyến VNPay thành công cho đơn hàng #TB-" + maDH + "!");
-                } else {
-                    dh.setTrangThaiThanhToan("ThatBai");
-                    donHangRepository.save(dh);
-                    redirectAttributes.addFlashAttribute("errorMessage", "Giao dịch VNPay không thành công hoặc đã bị hủy (Mã phản hồi: " + responseCode + ")!");
+                    return ResponseEntity.ok(Map.of("success", true, "message", "Đã khớp đơn hàng #TB-" + orderId + " và cập nhật Đã Thanh Toán!"));
                 }
-                return "redirect:/don-hang/" + maDH;
-            } catch (Exception e) {
-                redirectAttributes.addFlashAttribute("errorMessage", "Lỗi xử lý kết quả VNPay: " + e.getMessage());
             }
+            return ResponseEntity.ok(Map.of("success", false, "message", "Không tìm thấy mã đơn hàng phù hợp trong nội dung: " + content));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "error", e.getMessage()));
         }
-        return "redirect:/don-hang";
     }
 
     // ==================== API Lấy thông báo của người dùng ====================

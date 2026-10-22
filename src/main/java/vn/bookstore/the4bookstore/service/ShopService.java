@@ -28,17 +28,20 @@ public class ShopService {
     private final SanPhamRepository sanPhamRepository;
     private final vn.bookstore.the4bookstore.repository.DonHangRepository donHangRepository;
     private final vn.bookstore.the4bookstore.repository.KhuyenMaiRepository khuyenMaiRepository;
+    private final vn.bookstore.the4bookstore.repository.CauHinhHeThongRepository cauHinhHeThongRepository;
 
     public ShopService(ShopRepository shopRepository,
                        TaiKhoanRepository taiKhoanRepository,
                        SanPhamRepository sanPhamRepository,
                        vn.bookstore.the4bookstore.repository.DonHangRepository donHangRepository,
-                       vn.bookstore.the4bookstore.repository.KhuyenMaiRepository khuyenMaiRepository) {
+                       vn.bookstore.the4bookstore.repository.KhuyenMaiRepository khuyenMaiRepository,
+                       vn.bookstore.the4bookstore.repository.CauHinhHeThongRepository cauHinhHeThongRepository) {
         this.shopRepository = shopRepository;
         this.taiKhoanRepository = taiKhoanRepository;
         this.sanPhamRepository = sanPhamRepository;
         this.donHangRepository = donHangRepository;
         this.khuyenMaiRepository = khuyenMaiRepository;
+        this.cauHinhHeThongRepository = cauHinhHeThongRepository;
     }
 
     @Transactional(readOnly = true)
@@ -56,8 +59,34 @@ public class ShopService {
         return shopRepository.findById(maShop);
     }
 
+    @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable("pendingShopCount")
+    public long countPendingShops() {
+        return shopRepository.countByTrangThai("ChoDuyet");
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public Shop registerShop(TaiKhoan taiKhoan, String tenShop, String moTa, String diaChi, String soDienThoai, String email) {
-        if (shopRepository.findByTaiKhoan(taiKhoan).isPresent()) {
+        Optional<Shop> existingOpt = shopRepository.findByTaiKhoan(taiKhoan);
+        if (existingOpt.isPresent()) {
+            Shop existing = existingOpt.get();
+            // Nếu hồ sơ trước đó đã bị từ chối hoặc đã xóa, cho phép cập nhật lại thông tin và gửi lại đơn
+            if ("TuChoi".equalsIgnoreCase(existing.getTrangThai()) || "DaXoa".equalsIgnoreCase(existing.getTrangThai())) {
+                if (!existing.getTenShop().equalsIgnoreCase(tenShop.trim()) && shopRepository.existsByTenShop(tenShop.trim())) {
+                    throw new IllegalArgumentException("Tên shop đã tồn tại, vui lòng chọn tên khác!");
+                }
+                String slug = toSlug(tenShop);
+                existing.setTenShop(tenShop.trim());
+                existing.setSlug(slug);
+                existing.setMoTa(moTa);
+                existing.setDiaChiShop(diaChi);
+                existing.setSoDienThoai(soDienThoai);
+                existing.setEmailShop(email);
+                existing.setTrangThai("ChoDuyet"); // Reset trạng thái về Chờ Duyệt
+                existing.setNgayTao(LocalDateTime.now());
+                existing.setNgayCapNhat(LocalDateTime.now());
+                return shopRepository.save(existing);
+            }
             throw new IllegalArgumentException("Tài khoản này đã đăng ký mở shop!");
         }
         if (shopRepository.existsByTenShop(tenShop)) {
@@ -80,7 +109,16 @@ public class ShopService {
         shop.setLogo("https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=150");
         shop.setBanner("https://images.unsplash.com/photo-1507842229451-7f01be45c06b?w=1200");
         shop.setTrangThai("ChoDuyet"); // Chờ Admin kiểm tra và duyệt gian hàng
-        shop.setChietKhauPhanTram(new BigDecimal("5.00")); // Mặc định 5%
+        BigDecimal defaultCommission = cauHinhHeThongRepository.findById("PHI_SAN_MAC_DINH")
+                .map(c -> {
+                    try {
+                        return new BigDecimal(c.getGiaTri());
+                    } catch (Exception e) {
+                        return new BigDecimal("5.00");
+                    }
+                })
+                .orElse(new BigDecimal("5.00"));
+        shop.setChietKhauPhanTram(defaultCommission);
         shop.setNgayTao(LocalDateTime.now());
 
         // Vai trò tài khoản vẫn giữ nguyên KHACHHANG/USER cho đến khi được Admin duyệt
@@ -107,6 +145,7 @@ public class ShopService {
         return shopRepository.save(shop);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public void duyetShop(Integer maShop) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop"));
@@ -120,6 +159,15 @@ public class ShopService {
             taiKhoanRepository.save(tk);
         }
 
+        shopRepository.save(shop);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
+    public void tuChoiShop(Integer maShop) {
+        Shop shop = shopRepository.findById(maShop)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
+        shop.setTrangThai("TuChoi");
+        shop.setNgayCapNhat(LocalDateTime.now());
         shopRepository.save(shop);
     }
 
@@ -153,6 +201,7 @@ public class ShopService {
         }
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public void xoaShop(Integer maShop) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
@@ -209,10 +258,16 @@ public class ShopService {
 
     @Transactional(readOnly = true)
     public Page<Shop> searchShops(String keyword, Pageable pageable) {
+        return searchShopsByCriteria(keyword, "all", pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Shop> searchShopsByCriteria(String keyword, String searchType, Pageable pageable) {
         if (keyword == null || keyword.isBlank()) {
             return getAllShops(pageable);
         }
-        return shopRepository.findByTenShopContainingIgnoreCaseAndTrangThaiNot(keyword.trim(), "DaXoa", pageable);
+        String type = (searchType != null && !searchType.isBlank()) ? searchType.trim() : "all";
+        return shopRepository.searchShopsByCriteria(keyword.trim(), type, pageable);
     }
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");

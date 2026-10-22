@@ -45,39 +45,88 @@ public class ReportService {
         return revenue != null ? new BigDecimal(revenue) : BigDecimal.ZERO;
     }
 
-    public List<MonthlyRevenueDTO> getRevenueByMonth() {
-        String sql = "CALL sp_DoanhThuTheoThang()";
+    public BigDecimal getThisMonthRevenue() {
+        try {
+            LocalDateTime startOfMonth = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+            LocalDateTime nextMonth = startOfMonth.plusMonths(1);
 
-        Query query = entityManager.createNativeQuery(sql);
-        List<Object[]> results = query.getResultList();
+            Long revenue = donHangRepository.getRevenueByDateRange(startOfMonth, nextMonth);
+            if (revenue != null) {
+                return new BigDecimal(revenue);
+            }
+        } catch (Exception e) {
+            try {
+                int currentMonth = LocalDate.now().getMonthValue();
+                for (MonthlyRevenueDTO dto : getRevenueByMonth()) {
+                    if (dto.getMonth().equals(String.format("Tháng %02d", currentMonth))) {
+                        return dto.getRevenue();
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        return BigDecimal.ZERO;
+    }
+
+    public List<MonthlyRevenueDTO> getRevenueByMonth() {
+        int currentYear = LocalDate.now().getYear();
+        int currentMonth = LocalDate.now().getMonthValue();
+        Map<Integer, BigDecimal> dbMap = new HashMap<>();
+
+        try {
+            String sql = "CALL sp_DoanhThuTheoThang()";
+            Query query = entityManager.createNativeQuery(sql);
+            @SuppressWarnings("unchecked")
+            List<Object[]> results = query.getResultList();
+
+            if (results != null) {
+                for (Object[] row : results) {
+                    if (row != null && row.length >= 3 && row[0] != null && row[1] != null) {
+                        Integer year = ((Number) row[0]).intValue();
+                        Integer month = ((Number) row[1]).intValue();
+                        if (year == currentYear) {
+                            BigDecimal revenue = row[2] != null ? new BigDecimal(((Number) row[2]).longValue()) : BigDecimal.ZERO;
+                            dbMap.put(month, revenue);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Keep dbMap empty on query error and continue to build full month list
+        }
 
         List<MonthlyRevenueDTO> dtos = new ArrayList<>();
-        for (Object[] row : results) {
-            Integer year = ((Number) row[0]).intValue();
-            Integer month = ((Number) row[1]).intValue();
-            BigDecimal revenue = new BigDecimal(((Number) row[2]).longValue());
-            String monthStr = String.format("%04d-%02d", year, month);
-            dtos.add(new MonthlyRevenueDTO(monthStr, revenue));
+        // Trả về từ Tháng 1 đến Tháng hiện tại (Tháng 10) theo thứ tự thời gian tăng dần
+        for (int m = 1; m <= currentMonth; m++) {
+            BigDecimal revenue = dbMap.getOrDefault(m, BigDecimal.ZERO);
+            dtos.add(new MonthlyRevenueDTO(String.format("Tháng %02d", m), revenue));
         }
         return dtos;
     }
 
     public List<TopSellingBookDTO> getTopSellingBooks() {
-        String sql = "CALL sp_TopSachBanChay(10)";
+        try {
+            String sql = "CALL sp_TopSachBanChay(10)";
+            Query query = entityManager.createNativeQuery(sql);
+            @SuppressWarnings("unchecked")
+            List<Object[]> results = query.getResultList();
 
-        Query query = entityManager.createNativeQuery(sql);
-        List<Object[]> results = query.getResultList();
-
-        List<TopSellingBookDTO> dtos = new ArrayList<>();
-        for (Object[] row : results) {
-            Long maSP = ((Number) row[0]).longValue();
-            String tenSP = (String) row[1];
-            Long soLuongBan = ((Number) row[2]).longValue();
-            Integer giaBan = (row.length > 3 && row[3] != null) ? ((Number) row[3]).intValue() : null;
-            Long doanhThuDongGop = (row.length > 4 && row[4] != null) ? ((Number) row[4]).longValue() : null;
-            dtos.add(new TopSellingBookDTO(maSP, tenSP, soLuongBan, giaBan, doanhThuDongGop));
+            List<TopSellingBookDTO> dtos = new ArrayList<>();
+            if (results != null) {
+                for (Object[] row : results) {
+                    if (row != null && row.length >= 3 && row[0] != null) {
+                        Long maSP = ((Number) row[0]).longValue();
+                        String tenSP = row[1] != null ? (String) row[1] : "Sản phẩm #" + maSP;
+                        Long soLuongBan = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+                        Integer giaBan = (row.length > 3 && row[3] != null) ? ((Number) row[3]).intValue() : 0;
+                        Long doanhThuDongGop = (row.length > 4 && row[4] != null) ? ((Number) row[4]).longValue() : 0L;
+                        dtos.add(new TopSellingBookDTO(maSP, tenSP, soLuongBan, giaBan, doanhThuDongGop));
+                    }
+                }
+            }
+            return dtos;
+        } catch (Exception e) {
+            return new ArrayList<>();
         }
-        return dtos;
     }
 
     public Long getTodayOrderCount() {

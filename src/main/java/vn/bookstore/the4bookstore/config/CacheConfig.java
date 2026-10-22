@@ -8,10 +8,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableCaching
+@org.springframework.scheduling.annotation.EnableAsync
 public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        return new ConcurrentMapCacheManager("categories");
+        return new ConcurrentMapCacheManager();
     }
 }

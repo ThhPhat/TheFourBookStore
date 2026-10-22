@@ -1,7 +1,9 @@
 package vn.bookstore.the4bookstore.service;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.bookstore.the4bookstore.entity.*;
@@ -27,23 +29,29 @@ public class VendorService {
     private final DonHangRepository donHangRepository;
     private final KhuyenMaiRepository khuyenMaiRepository;
     private final DanhMucRepository danhMucRepository;
-    private final NhaXuatBanRepository nhaXuatBanRepository;
     private final SanPhamService sanPhamService;
+    private final ThanhToanRepository thanhToanRepository;
+    private final TacGiaRepository tacGiaRepository;
+    private final SanPhamTacGiaRepository sanPhamTacGiaRepository;
 
     public VendorService(ShopRepository shopRepository,
                          SanPhamRepository sanPhamRepository,
                          DonHangRepository donHangRepository,
                          KhuyenMaiRepository khuyenMaiRepository,
                          DanhMucRepository danhMucRepository,
-                         NhaXuatBanRepository nhaXuatBanRepository,
-                         SanPhamService sanPhamService) {
+                         SanPhamService sanPhamService,
+                         ThanhToanRepository thanhToanRepository,
+                         TacGiaRepository tacGiaRepository,
+                         SanPhamTacGiaRepository sanPhamTacGiaRepository) {
         this.shopRepository = shopRepository;
         this.sanPhamRepository = sanPhamRepository;
         this.donHangRepository = donHangRepository;
         this.khuyenMaiRepository = khuyenMaiRepository;
         this.danhMucRepository = danhMucRepository;
-        this.nhaXuatBanRepository = nhaXuatBanRepository;
         this.sanPhamService = sanPhamService;
+        this.thanhToanRepository = thanhToanRepository;
+        this.tacGiaRepository = tacGiaRepository;
+        this.sanPhamTacGiaRepository = sanPhamTacGiaRepository;
     }
 
     // --- DASHBOARD THỐNG KÊ CỦA SHOP ---
@@ -94,7 +102,34 @@ public class VendorService {
         return sanPhamRepository.findActiveByShop(maShop, pageable);
     }
 
-    public SanPham saveShopProduct(Integer maShop, SanPham sanPham, Integer maDanhMuc, Integer maNXB) {
+    @Transactional(readOnly = true)
+    public Page<SanPham> getShopProducts(Integer maShop, String keyword, Integer maDanhMuc, String loaiSP, String sortBy, Pageable pageable) {
+        Sort sortOrder;
+        if ("oldest".equalsIgnoreCase(sortBy)) {
+            sortOrder = Sort.by(Sort.Direction.ASC, "ngayTao", "maSP");
+        } else if ("price_asc".equalsIgnoreCase(sortBy)) {
+            sortOrder = Sort.by(Sort.Direction.ASC, "giaBan");
+        } else if ("price_desc".equalsIgnoreCase(sortBy)) {
+            sortOrder = Sort.by(Sort.Direction.DESC, "giaBan");
+        } else if ("bestseller".equalsIgnoreCase(sortBy)) {
+            sortOrder = Sort.by(Sort.Direction.DESC, "soLuongDaBan");
+        } else {
+            sortOrder = Sort.by(Sort.Direction.DESC, "ngayTao", "maSP");
+        }
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sortOrder);
+
+        String trimmedKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        String trimmedLoaiSP = (loaiSP != null && !loaiSP.isBlank()) ? loaiSP.trim() : null;
+
+        return sanPhamRepository.filterShopProducts(maShop, trimmedKeyword, maDanhMuc, trimmedLoaiSP, sortedPageable);
+    }
+
+    public SanPham saveShopProduct(Integer maShop, SanPham sanPham, Integer maDanhMuc) {
+        return saveShopProduct(maShop, sanPham, maDanhMuc, (String) null);
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = {"authors", "home_featured_books", "home_preview", "guest_top_sold", "book_of_the_month", "categories"}, allEntries = true)
+    public SanPham saveShopProduct(Integer maShop, SanPham sanPham, Integer maDanhMuc, String tenTacGia) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
 
@@ -114,6 +149,7 @@ public class VendorService {
             sanPham.setGiaBan(0);
         }
 
+        SanPham saved;
         if (sanPham.getMaSP() != null) {
             SanPham existing = sanPhamRepository.findById(sanPham.getMaSP())
                     .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
@@ -125,7 +161,14 @@ public class VendorService {
             existing.setSoLuongTon(sanPham.getSoLuongTon());
             existing.setMoTa(sanPham.getMoTa());
             existing.setISBN(sanPham.getISBN());
-            existing.setLoaiSP(sanPham.getLoaiSP() != null ? sanPham.getLoaiSP() : "sach");
+            if (sanPham.getLoaiSP() != null && !sanPham.getLoaiSP().isBlank()) {
+                existing.setLoaiSP("sach".equalsIgnoreCase(sanPham.getLoaiSP()) ? "Sach" : sanPham.getLoaiSP());
+            } else if (existing.getLoaiSP() == null || "sach".equalsIgnoreCase(existing.getLoaiSP())) {
+                existing.setLoaiSP("Sach");
+            }
+            if (existing.getTrangThaiKhoa() == null || "ChoDuyet".equalsIgnoreCase(existing.getTrangThaiKhoa())) {
+                existing.setTrangThaiKhoa("BinhThuong");
+            }
             if (sanPham.getHinhAnh() != null && !sanPham.getHinhAnh().isBlank()) {
                 existing.setHinhAnh(sanPham.getHinhAnh());
             }
@@ -134,29 +177,67 @@ public class VendorService {
             if (maDanhMuc != null) {
                 existing.setDanhMuc(danhMucRepository.findById(maDanhMuc).orElse(null));
             }
-            if (maNXB != null) {
-                existing.setNhaXuatBan(nhaXuatBanRepository.findById(maNXB).orElse(null));
-            }
-            return sanPhamRepository.save(existing);
+            saved = sanPhamRepository.save(existing);
         } else {
             sanPham.setShop(shop);
-            sanPham.setTrangThaiKhoa("ChoDuyet");
+            sanPham.setTrangThaiKhoa("BinhThuong");
             sanPham.setSoLuongDaBan(0);
             sanPham.setNgayTao(LocalDateTime.now());
-            if (sanPham.getLoaiSP() == null) sanPham.setLoaiSP("sach");
+            if (sanPham.getLoaiSP() == null || "sach".equalsIgnoreCase(sanPham.getLoaiSP())) {
+                sanPham.setLoaiSP("Sach");
+            }
             if (maDanhMuc != null) {
                 sanPham.setDanhMuc(danhMucRepository.findById(maDanhMuc).orElse(null));
             }
             if (sanPham.getDanhMuc() == null) {
                 sanPham.setDanhMuc(danhMucRepository.findAll().stream().findFirst().orElse(null));
             }
-            if (maNXB != null) {
-                sanPham.setNhaXuatBan(nhaXuatBanRepository.findById(maNXB).orElse(null));
-            }
-            return sanPhamRepository.save(sanPham);
+            saved = sanPhamRepository.save(sanPham);
         }
+
+        // Xử lý Tác Giả (hỗ trợ 1 hoặc nhiều tác giả cách nhau bởi dấu phẩy/chấm phẩy)
+        if (tenTacGia != null) {
+            if (sanPhamTacGiaRepository != null && saved.getMaSP() != null) {
+                sanPhamTacGiaRepository.deleteBySanPhamId(saved.getMaSP());
+                sanPhamTacGiaRepository.flush();
+            }
+            if (!tenTacGia.trim().isEmpty() && tacGiaRepository != null && sanPhamTacGiaRepository != null) {
+                String[] authorNames = tenTacGia.split("[,;]");
+                int order = 1;
+                List<SanPhamTacGia> sptgList = new java.util.ArrayList<>();
+                java.util.Set<Integer> processedAuthorIds = new java.util.HashSet<>();
+                for (String rawName : authorNames) {
+                    String cleanName = rawName.trim();
+                    if (!cleanName.isEmpty()) {
+                        TacGia tg = tacGiaRepository.findByTenTacGiaIgnoreCase(cleanName)
+                                .orElseGet(() -> {
+                                    TacGia newTg = new TacGia();
+                                    newTg.setTenTacGia(cleanName);
+                                    newTg.setMoTa("Tác giả sách");
+                                    return tacGiaRepository.saveAndFlush(newTg);
+                                });
+                        if (tg.getMaTacGia() != null && !processedAuthorIds.contains(tg.getMaTacGia())) {
+                            processedAuthorIds.add(tg.getMaTacGia());
+                            SanPhamTacGia sptg = new SanPhamTacGia(saved, tg, order++);
+                            sanPhamTacGiaRepository.save(sptg);
+                            sptgList.add(sptg);
+                        }
+                    }
+                }
+                sanPhamTacGiaRepository.flush();
+                saved.setSanPhamTacGias(sptgList);
+            } else {
+                saved.setSanPhamTacGias(new java.util.ArrayList<>());
+            }
+            if (entityManager != null) {
+                entityManager.flush();
+            }
+        }
+
+        return saved;
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"authors", "home_featured_books", "home_preview", "guest_top_sold", "book_of_the_month", "categories"}, allEntries = true)
     public void deleteShopProduct(Integer maShop, Integer maSP) {
         SanPham sp = sanPhamRepository.findById(maSP)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm"));
@@ -179,6 +260,34 @@ public class VendorService {
             return donHangRepository.findByShop_MaShopAndTrangThaiOrderByNgayDatDesc(maShop, trangThai, pageable);
         }
         return donHangRepository.findByShop_MaShopOrderByNgayDatDesc(maShop, pageable);
+    }
+
+    // 0. Xác nhận đã thanh toán thành công
+    public DonHang xacNhanThanhToan(Integer maDH, Integer maShop) {
+        DonHang dh = checkAndGetShopOrder(maDH, maShop);
+        if ("DaThanhToan".equalsIgnoreCase(dh.getTrangThaiThanhToan())) {
+            return dh;
+        }
+        dh.setTrangThaiThanhToan("DaThanhToan");
+        if ("ChoThanhToan".equalsIgnoreCase(dh.getTrangThai())) {
+            dh.setTrangThai("ChoXuLy");
+        }
+        ThanhToan tt = thanhToanRepository.findFirstByDonHangOrderByMaThanhToanDesc(dh).orElse(null);
+        if (tt != null) {
+            tt.setTrangThai("ThanhCong");
+            tt.setNgayThanhToan(LocalDateTime.now());
+            thanhToanRepository.save(tt);
+        } else {
+            ThanhToan newTt = new ThanhToan();
+            newTt.setDonHang(dh);
+            newTt.setPhuongThuc(dh.getPhuongThucThanhToan() != null ? dh.getPhuongThucThanhToan() : "COD");
+            newTt.setSoTien(dh.getTongTien() != null ? dh.getTongTien() : 0);
+            newTt.setTrangThai("ThanhCong");
+            newTt.setNgayThanhToan(LocalDateTime.now());
+            newTt.setNoiDung("Shop xác nhận đã thanh toán thành công");
+            thanhToanRepository.save(newTt);
+        }
+        return donHangRepository.save(dh);
     }
 
     // 1. Xác nhận đơn: Tự động sinh mã vận đơn, chuyển DaXacNhan
@@ -296,8 +405,16 @@ public class VendorService {
     // Ngoại lệ B1: Shop đồng ý yêu cầu trả hàng / hoàn tiền -> Nhận lại sách, nhả tồn kho, hoàn tiền
     public DonHang dongYTraHang(Integer maDH, Integer maShop) {
         DonHang dh = checkAndGetShopOrder(maDH, maShop);
-        dh.setTrangThai("TraHangHoanTien");
-        dh.setTrangThaiThanhToan("DaHoanTien");
+        if ("ChoXuLy".equalsIgnoreCase(dh.getTrangThai()) || "DonHangMoi".equalsIgnoreCase(dh.getTrangThai())) {
+            throw new IllegalStateException("Đơn hàng chưa được xác nhận, không thể hoàn hàng!");
+        }
+
+        dh.setTrangThai("DaHoan");
+        if ("DaThanhToan".equalsIgnoreCase(dh.getTrangThaiThanhToan()) || "HoanTat".equalsIgnoreCase(dh.getTrangThai())) {
+            dh.setTrangThaiThanhToan("DaHoanTien");
+            dh.setTienThucNhanShop(0);
+            dh.setTienPhiSan(0);
+        }
 
         // Nhận lại sách và nhả tồn kho
         releaseOrderStock(dh);

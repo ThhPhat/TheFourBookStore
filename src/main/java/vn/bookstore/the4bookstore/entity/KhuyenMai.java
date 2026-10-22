@@ -50,17 +50,16 @@ public class KhuyenMai {
     @Column(nullable = false)
     private Boolean hienThiCongKhai = true;
 
-    // Khối 3: Điều kiện áp dụng: ALL (tất cả), DANHMUC (danh mục cụ thể), SANPHAM (sản phẩm cụ thể)
-    @Column(length = 20)
+    @Transient
     private String apDungCho = "ALL";
 
-    @Column(length = 500)
+    @Transient
     private String danhSachDanhMucIds;
 
-    @Column(length = 1000)
+    @Transient
     private String danhSachSanPhamIds;
 
-    @Column(length = 1000)
+    @Transient
     private String loaiTruSanPhamIds;
 
     // ALL (mọi người), NEW (khách mới), VIP (thành viên VIP)
@@ -79,6 +78,8 @@ public class KhuyenMai {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ma_shop")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Shop shop;
 
     /**
@@ -118,5 +119,37 @@ public class KhuyenMai {
 
     public boolean isDangDienRa() {
         return "DangDienRa".equals(getComputedStatus());
+    }
+
+    /**
+     * Phân loại loại voucher:
+     * - SHIPPING_DISCOUNT: Mã giảm chi phí vận chuyển (Freeship hoặc MIEN_PHI_VAN_CHUYEN)
+     * - ORDER_DISCOUNT: Mã giảm giá tiền sản phẩm (PhanTram, TienCoDinh, GIAM_GIA_SAN_PHAM)
+     */
+    public String getVoucherType() {
+        if ("Freeship".equalsIgnoreCase(loaiGiam) || "MIEN_PHI_VAN_CHUYEN".equalsIgnoreCase(loaiKhuyenMai) || "SHIPPING_DISCOUNT".equalsIgnoreCase(loaiKhuyenMai)) {
+            return "SHIPPING_DISCOUNT";
+        }
+        return "ORDER_DISCOUNT";
+    }
+
+    public boolean isShippingDiscount() {
+        return "SHIPPING_DISCOUNT".equals(getVoucherType());
+    }
+
+    public boolean isOrderDiscount() {
+        return "ORDER_DISCOUNT".equals(getVoucherType());
+    }
+
+    /**
+     * Phân loại hình thức chiết khấu:
+     * - PERCENTAGE: Giảm theo tỷ lệ %
+     * - FIXED_AMOUNT: Giảm theo số tiền cụ thể
+     */
+    public String getDiscountType() {
+        if ("PhanTram".equalsIgnoreCase(loaiGiam) || "PERCENTAGE".equalsIgnoreCase(loaiGiam)) {
+            return "PERCENTAGE";
+        }
+        return "FIXED_AMOUNT";
     }
 }

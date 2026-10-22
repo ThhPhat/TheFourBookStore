@@ -2,6 +2,7 @@ package vn.bookstore.the4bookstore.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -9,9 +10,15 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -20,19 +27,22 @@ public class SecurityConfig {
     private final CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtLogoutSuccessHandler jwtLogoutSuccessHandler;
+    private final RateLimitFilter rateLimitFilter;
 
     public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
                           CustomOidcUserService customOidcUserService,
                           OAuth2LoginSuccessHandler oauth2LoginSuccessHandler,
-                          CustomAuthenticationFailureHandler customAuthenticationFailureHandler,
-                          JwtAuthenticationFilter jwtAuthenticationFilter,
-                          JwtLogoutSuccessHandler jwtLogoutSuccessHandler) {
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) CustomAuthenticationFailureHandler customAuthenticationFailureHandler,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) JwtAuthenticationFilter jwtAuthenticationFilter,
+                          JwtLogoutSuccessHandler jwtLogoutSuccessHandler,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) RateLimitFilter rateLimitFilter) {
         this.customOAuth2UserService = customOAuth2UserService;
         this.customOidcUserService = customOidcUserService;
         this.oauth2LoginSuccessHandler = oauth2LoginSuccessHandler;
         this.customAuthenticationFailureHandler = customAuthenticationFailureHandler;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.jwtLogoutSuccessHandler = jwtLogoutSuccessHandler;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -51,29 +61,66 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "https://localhost:*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin())
+                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+            )
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/api/webhooks/**", "/don-hang/api/**", "/ws/**", "/vendor/imports", "/vendor/imports/**"))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/vendor", "/vendor/**").authenticated()
-                .requestMatchers("/admin/platform-fees", "/admin/platform-fees/**").hasAnyRole("ADMIN", "QUANLY", "MANAGER")
+                // Phân quyền cho Vendor Portal (Chủ shop, Quản trị, Manager)
+                .requestMatchers("/vendor", "/vendor/register", "/vendor/register/**", "/vendor/pending", "/vendor/blocked", "/vendor/rejected").authenticated()
+                .requestMatchers("/vendor/**").hasAnyRole("VENDOR", "ADMIN", "MANAGER")
+
+                // Phân quyền cho Quản trị Admin & Manager (4 role chính: ADMIN, MANAGER, VENDOR, KHACHHANG, QUANLY tương thích ngược)
+                .requestMatchers("/admin/shops", "/admin/shops/**", "/manager/shops", "/manager/shops/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
+                .requestMatchers("/admin/platform-fees", "/admin/platform-fees/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
                 .requestMatchers("/admin/system/**", "/admin/managers/**").hasRole("ADMIN")
-                .requestMatchers("/admin/kho", "/admin/kho/**", "/kho/**").hasAnyRole("ADMIN", "QUANLY", "MANAGER", "NHANVIENKHO")
-                .requestMatchers("/admin/orders", "/admin/orders/**").hasAnyRole("ADMIN", "QUANLY", "MANAGER", "NHANVIENBANHANG")
-                .requestMatchers("/admin", "/admin/**", "/manager", "/manager/**").hasAnyRole("ADMIN", "QUANLY", "MANAGER")
-                .requestMatchers("/ban-hang/**").hasAnyRole("ADMIN", "QUANLY", "MANAGER", "NHANVIENBANHANG")
-                .requestMatchers("/khach-hang/**").hasAnyRole("KHACHHANG", "USER", "ADMIN", "QUANLY", "MANAGER")
+                .requestMatchers("/admin/users", "/admin/users/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
+                .requestMatchers("/admin/kho", "/admin/kho/**", "/kho/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
+                .requestMatchers("/admin/orders", "/admin/orders/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
+                .requestMatchers("/admin", "/admin/**", "/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
+                .requestMatchers("/ban-hang/**").hasAnyRole("ADMIN", "MANAGER", "QUANLY")
+                .requestMatchers("/khach-hang/**").hasAnyRole("KHACHHANG", "USER", "ADMIN", "MANAGER")
+
+                // Yêu cầu xác thực tài khoản (Hồ sơ, địa chỉ, đơn hàng, giỏ hàng, voucher)
                 .requestMatchers("/profile", "/profile/**", "/dia-chi/**", "/api/dia-chi/**", "/api/favorites/**", "/api/danh-gia/**").authenticated()
-                .requestMatchers("/don-hang", "/don-hang/**", "/gio-hang/dat-hang", "/thanh-toan/**").authenticated()
+                .requestMatchers("/don-hang", "/don-hang/**", "/thanh-toan/**").authenticated()
+                .requestMatchers("/gio-hang", "/gio-hang/**").authenticated()
+                .requestMatchers("/san-voucher", "/san-voucher/**", "/vouchers/**", "/khuyen-mai/**", "/api/voucher/**").authenticated()
+
+                // Webhook và API kiểm tra trạng thái thanh toán công khai
+                .requestMatchers("/don-hang/api/vietqr-webhook", "/don-hang/api/webhooks/**", "/don-hang/api/*/trang-thai-thanh-toan", "/api/webhooks/**").permitAll()
+
+                // API giỏ hàng hỗ trợ AJAX (trả requireLogin: true nếu chưa đăng nhập)
                 .requestMatchers("/api/gio-hang/**").permitAll()
-                .requestMatchers("/gio-hang", "/gio-hang/**").permitAll()
+
+                // Công khai (Public routes: chỉ xem web, xem sản phẩm, xem shop, tìm kiếm)
                 .requestMatchers("/shop", "/shop/**").permitAll()
-                .requestMatchers("/forgot-password", "/forgot-password/**", "/reset-password", "/reset-password/**", "/resend-otp").permitAll()
-                .anyRequest().permitAll()
+                .requestMatchers("/register", "/register/**", "/login", "/process-login", "/forgot-password", "/forgot-password/**", "/reset-password", "/reset-password/**", "/verify-otp", "/resend-otp").permitAll()
+                .requestMatchers("/", "/home", "/san-pham/**", "/search/**", "/css/**", "/js/**", "/images/**", "/webjars/**", "/error", "/favicon.ico", "/favicon.png").permitAll()
+                .requestMatchers("/ws", "/ws/**").permitAll()
+
+                // Fail-Close policy: Bất kỳ URL nào khác đều phải xác thực
+                .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    if (request.getRequestURI().startsWith("/admin") || request.getRequestURI().startsWith("/kho")) {
+                    if (request.getRequestURI().startsWith("/admin") || request.getRequestURI().startsWith("/kho") || request.getRequestURI().startsWith("/vendor")) {
                         response.sendRedirect(request.getContextPath() + "/?accessDenied=true");
                     } else {
                         response.sendRedirect(request.getContextPath() + "/");
@@ -84,7 +131,7 @@ public class SecurityConfig {
                 .loginPage("/login")
                 .loginProcessingUrl("/process-login")
                 .successHandler(oauth2LoginSuccessHandler)
-                .failureHandler(customAuthenticationFailureHandler)
+                .failureHandler(customAuthenticationFailureHandler != null ? customAuthenticationFailureHandler : new org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler("/login?error=true"))
                 .permitAll()
             )
             .oauth2Login(oauth2 -> oauth2
@@ -95,10 +142,13 @@ public class SecurityConfig {
                 )
                 .successHandler(oauth2LoginSuccessHandler)
                 .failureHandler((request, response, exception) -> {
+                    org.slf4j.LoggerFactory.getLogger("OAuth2Security").error("Google OAuth2 login failed: {}", exception != null ? exception.getMessage() : "Unknown error", exception);
                     if (exception != null && exception.getMessage() != null && (exception.getMessage().contains("account_locked") || exception.getMessage().contains("khóa"))) {
                         response.sendRedirect(request.getContextPath() + "/login?locked=true");
                     } else {
-                        response.sendRedirect(request.getContextPath() + "/login?error=true");
+                        String msg = (exception != null && exception.getMessage() != null) ? exception.getMessage() : "Đăng nhập Google thất bại";
+                        String encodedMsg = java.net.URLEncoder.encode(msg, java.nio.charset.StandardCharsets.UTF_8);
+                        response.sendRedirect(request.getContextPath() + "/login?oauthError=" + encodedMsg);
                     }
                 })
             )
@@ -109,10 +159,16 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
-                .maximumSessions(-1)
+                .maximumSessions(3)
                 .sessionRegistry(sessionRegistry())
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            );
+
+        if (rateLimitFilter != null) {
+            http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+        }
+        if (jwtAuthenticationFilter != null) {
+            http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         return http.build();
     }

@@ -73,6 +73,16 @@ public class KhuyenMaiService {
         return khuyenMaiRepository.findById(id);
     }
 
+    @org.springframework.cache.annotation.Cacheable("public_vouchers")
+    public List<KhuyenMai> getActivePublicVouchers() {
+        return khuyenMaiRepository.findAll().stream()
+                .filter(km -> "HoatDong".equalsIgnoreCase(km.getTrangThai()))
+                .filter(km -> Boolean.TRUE.equals(km.getHienThiCongKhai()))
+                .filter(KhuyenMai::isDangDienRa)
+                .toList();
+    }
+
+    @org.springframework.cache.annotation.CacheEvict(value = "public_vouchers", allEntries = true)
     public KhuyenMai save(KhuyenMai khuyenMai) {
         if (khuyenMai.getMaCode() != null) {
             khuyenMai.setMaCode(khuyenMai.getMaCode().trim().toUpperCase());
@@ -108,6 +118,7 @@ public class KhuyenMaiService {
         }
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "public_vouchers", allEntries = true)
     public void toggleStatus(Integer id) {
         KhuyenMai km = khuyenMaiRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mã khuyến mãi #" + id));
@@ -119,6 +130,7 @@ public class KhuyenMaiService {
         khuyenMaiRepository.save(km);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "public_vouchers", allEntries = true)
     public void delete(Integer id) {
         KhuyenMai km = khuyenMaiRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mã khuyến mãi #" + id));
@@ -133,6 +145,7 @@ public class KhuyenMaiService {
         }
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "public_vouchers", allEntries = true)
     public KhuyenMai duplicate(Integer id) {
         KhuyenMai source = khuyenMaiRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mã khuyến mãi #" + id));

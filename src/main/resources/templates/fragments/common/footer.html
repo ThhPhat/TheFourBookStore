@@ -6,12 +6,8 @@
     <footer th:fragment="common_footer" class="bg-surface-container-low border-t border-surface-container py-space-xl mt-space-xl text-on-surface-variant">
         <div class="max-w-7xl mx-auto px-space-md md:px-margin-desktop grid grid-cols-1 md:grid-cols-4 gap-space-lg text-xs">
             <div class="space-y-space-xs">
-                <img th:src="@{/images/logo.svg}" alt="Logo" class="h-8 w-auto mb-2"/>
+                <img th:src="@{/images/Logo4bs.png}" alt="The4BookStore Logo" class="h-8 w-auto mb-2 object-contain"/>
                 <p class="leading-relaxed">Không gian văn hóa tuyển chọn, nơi tri thức và cảm hứng hội tụ dành cho độc giả yêu sách Việt Nam.</p>
-                <div class="text-[11px] text-outline pt-2">
-                    <p>📍 123 Đường Sách Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh</p>
-                    <p>📞 Hotline: 1900 6868 (8:00 - 21:00 hàng ngày)</p>
-                </div>
             </div>
 
             <div>
@@ -39,7 +35,7 @@
 
             <div>
                 <h4 class="font-headline-sm font-bold text-on-surface text-sm mb-3">Bản Tin Tri Thức</h4>
-                <p class="mb-3 leading-relaxed">Đăng ký để nhận thông tin về sách mới tuyển chọn và các chương trình ưu đãi độc quyền.</p>
+                <p class="mb-3 leading-relaxed">Đăng ký để nhận thông tin về sản phẩm mới tuyển chọn và các chương trình ưu đãi độc quyền.</p>
                 <div class="flex gap-2">
                     <input type="email" placeholder="Email của bạn..." class="bg-surface-container-lowest px-3 py-2 rounded-xl text-xs flex-1 border border-surface-container focus:outline-none focus:ring-1 focus:ring-primary"/>
                     <button class="px-4 py-2 bg-primary text-on-primary font-bold rounded-xl hover:bg-primary-container transition-all shadow-xs">Gửi</button>
@@ -48,7 +44,7 @@
         </div>
 
         <div class="max-w-7xl mx-auto px-space-md md:px-margin-desktop mt-8 pt-4 border-t border-surface-container flex flex-col sm:flex-row justify-between items-center text-[11px] text-outline gap-2">
-            <p>© 2026 The4BookStore. Thiết kế chuẩn Forest Folio Design System.</p>
+            <p>© 2026 The4BookStore.</p>
             <div class="flex items-center gap-4">
                 <span>Chuẩn thanh toán PCI DSS 100%</span>
                 <span>Giao hàng 24h</span>
@@ -117,7 +113,7 @@
                     }
 
                     if (data.success) {
-                        showGlobalToast(data.message || 'Đã thêm sách vào giỏ hàng!', true);
+                        showGlobalToast(data.message || 'Đã thêm sản phẩm vào giỏ hàng!', true);
                         const badge = document.getElementById('global-cart-badge');
                         if (badge && data.cartCount !== undefined) {
                             if (data.cartCount > 0) {

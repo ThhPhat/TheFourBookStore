@@ -1,7 +1,6 @@
 package vn.bookstore.the4bookstore.controller;
 
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +13,6 @@ import vn.bookstore.the4bookstore.entity.Shop;
 import vn.bookstore.the4bookstore.entity.TaiKhoan;
 import vn.bookstore.the4bookstore.repository.DanhMucRepository;
 import vn.bookstore.the4bookstore.repository.DonHangRepository;
-import vn.bookstore.the4bookstore.repository.NhaXuatBanRepository;
 import vn.bookstore.the4bookstore.repository.SanPhamRepository;
 import vn.bookstore.the4bookstore.repository.ShopRepository;
 import vn.bookstore.the4bookstore.repository.TaiKhoanRepository;
@@ -26,9 +24,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @Controller
 @RequestMapping("/admin/import-export")
-@RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'QUANLY')")
 public class AdminImportExportController {
 
     private final SanPhamRepository sanPhamRepository;
@@ -36,7 +36,18 @@ public class AdminImportExportController {
     private final TaiKhoanRepository taiKhoanRepository;
     private final ShopRepository shopRepository;
     private final DanhMucRepository danhMucRepository;
-    private final NhaXuatBanRepository nhaXuatBanRepository;
+
+    public AdminImportExportController(SanPhamRepository sanPhamRepository,
+                                       DonHangRepository donHangRepository,
+                                       TaiKhoanRepository taiKhoanRepository,
+                                       ShopRepository shopRepository,
+                                       DanhMucRepository danhMucRepository) {
+        this.sanPhamRepository = sanPhamRepository;
+        this.donHangRepository = donHangRepository;
+        this.taiKhoanRepository = taiKhoanRepository;
+        this.shopRepository = shopRepository;
+        this.danhMucRepository = danhMucRepository;
+    }
 
     @GetMapping
     public String index(Model model) {
@@ -47,6 +58,7 @@ public class AdminImportExportController {
         return "admin/import_export";
     }
 
+
     // ==================== TẢI FILE CSV MẪU SẢN PHẨM ====================
     @GetMapping("/sample/products")
     public void downloadSampleProductsCsv(HttpServletResponse response) throws IOException {
@@ -55,14 +67,13 @@ public class AdminImportExportController {
 
         try (OutputStream os = response.getOutputStream();
              PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8))) {
-            // Ghi UTF-8 BOM để Excel hiển thị đúng dấu tiếng Việt
             os.write(0xEF);
             os.write(0xBB);
             os.write(0xBF);
 
-            writer.println("ISBN,TenSP,GiaBan,SoLuongTon,LoaiSP,MaDanhMuc,MaNXB,MoTa");
-            writer.println("9786043658999,Đắc Nhân Tâm - Khổ Tiêu Chuẩn,85000,100,Sach,1,1,Sách kinh điển về nghệ thuật ứng xử và kết nối.");
-            writer.println("8935244855523,Sổ Tay Dot Grid Bìa Da Cao Cấp,45000,50,VanPhongPham,2,1,Sổ tay kẻ chấm dot ghi chép bullet journal.");
+            writer.println("ISBN,TenSP,GiaBan,SoLuongTon,LoaiSP,MaDanhMuc,MoTa");
+            writer.println("9786043658999,Đắc Nhân Tâm - Khổ Tiêu Chuẩn,85000,100,Sach,1,Sách kinh điển về nghệ thuật ứng xử và kết nối.");
+            writer.println("8935244855523,Sổ Tay Dot Grid Bìa Da Cao Cấp,45000,50,VanPhongPham,2,Sổ tay kẻ chấm dot ghi chép bullet journal.");
             writer.flush();
         }
     }
@@ -80,14 +91,13 @@ public class AdminImportExportController {
              PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8))) {
             os.write(0xEF); os.write(0xBB); os.write(0xBF);
 
-            writer.println("Mã SP,ISBN,Tên Sản Phẩm,Giá Bán (VNĐ),Số Lượng Tồn,Số Lượng Đã Bán,Loại Sản Phẩm,Danh Mục,Nhà Xuất Bản,Gian Hàng,Trạng Thái Bán,Trạng Thái Khóa");
+            writer.println("Mã SP,ISBN,Tên Sản Phẩm,Giá Bán (VNĐ),Số Lượng Tồn,Số Lượng Đã Bán,Loại Sản Phẩm,Danh Mục,Gian Hàng,Trạng Thái Bán,Trạng Thái Khóa");
 
             for (SanPham p : list) {
                 String shopName = p.getShop() != null ? escapeCsv(p.getShop().getTenShop()) : "The4BookStore Official";
-                String nxbName = p.getNhaXuatBan() != null ? escapeCsv(p.getNhaXuatBan().getTenNXB()) : "";
                 String dmName = p.getDanhMuc() != null ? escapeCsv(p.getDanhMuc().getTenDanhMuc()) : "";
 
-                writer.println(String.format("%d,%s,%s,%d,%d,%d,%s,%s,%s,%s,%s,%s",
+                writer.println(String.format("%d,%s,%s,%d,%d,%d,%s,%s,%s,%s,%s",
                         p.getMaSP(),
                         p.getISBN() != null ? escapeCsv(p.getISBN()) : "",
                         escapeCsv(p.getTenSP()),
@@ -96,7 +106,6 @@ public class AdminImportExportController {
                         p.getSoLuongDaBan() != null ? p.getSoLuongDaBan() : 0,
                         escapeCsv(p.getLoaiSP()),
                         dmName,
-                        nxbName,
                         shopName,
                         escapeCsv(p.getTrangThai()),
                         escapeCsv(p.getTrangThaiKhoa())
@@ -214,6 +223,7 @@ public class AdminImportExportController {
         }
     }
 
+
     // ==================== NHẬP SẢN PHẨM TỪ FILE CSV ====================
     @PostMapping("/import/products")
     public String importProductsCsv(@RequestParam("file") MultipartFile file, RedirectAttributes ra) {
@@ -234,18 +244,15 @@ public class AdminImportExportController {
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
-            // Lấy shop mặc định sàn (Shop 1)
             Shop defaultShop = shopRepository.findById(1).orElse(null);
 
             while ((line = reader.readLine()) != null) {
                 rowIdx++;
-                // Bỏ qua header
                 if (rowIdx == 1) {
                     continue;
                 }
                 if (line.trim().isEmpty()) continue;
 
-                // Tách cột bằng dấu phẩy có hỗ trợ dấu ngoặc kép
                 String[] cols = parseCsvLine(line);
                 if (cols.length < 4) continue;
 
@@ -255,8 +262,7 @@ public class AdminImportExportController {
                 int tonKho = parseIntSafe(cols[3], 0);
                 String loaiSP = cols.length > 4 && !cols[4].isBlank() ? cols[4].trim() : "Sach";
                 Integer maDanhMuc = cols.length > 5 ? parseIntegerSafe(cols[5]) : 1;
-                Integer maNxb = cols.length > 6 ? parseIntegerSafe(cols[6]) : null;
-                String moTa = cols.length > 7 ? cols[7].trim() : "";
+                String moTa = cols.length > 6 ? cols[6].trim() : "";
 
                 if (tenSP.isEmpty()) continue;
 
@@ -266,7 +272,6 @@ public class AdminImportExportController {
                 }
 
                 if (existingOpt.isPresent()) {
-                    // Cập nhật sản phẩm đã có
                     SanPham sp = existingOpt.get();
                     sp.setTenSP(tenSP);
                     sp.setGiaBan(giaBan);
@@ -275,7 +280,6 @@ public class AdminImportExportController {
                     sanPhamRepository.save(sp);
                     updatedCount++;
                 } else {
-                    // Thêm mới sản phẩm
                     SanPham sp = new SanPham();
                     sp.setISBN(!isbn.isEmpty() ? isbn : "ISBN-" + System.currentTimeMillis() % 1000000000L);
                     sp.setTenSP(tenSP);
@@ -295,9 +299,6 @@ public class AdminImportExportController {
                     }
                     if (sp.getDanhMuc() == null) {
                         danhMucRepository.findAll().stream().findFirst().ifPresent(sp::setDanhMuc);
-                    }
-                    if (maNxb != null) {
-                        nhaXuatBanRepository.findById(maNxb).ifPresent(sp::setNhaXuatBan);
                     }
 
                     sanPhamRepository.save(sp);

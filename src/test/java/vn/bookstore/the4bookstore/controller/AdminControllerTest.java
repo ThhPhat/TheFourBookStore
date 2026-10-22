@@ -9,7 +9,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import vn.bookstore.the4bookstore.entity.NhaXuatBan;
 import vn.bookstore.the4bookstore.entity.TacGia;
 import vn.bookstore.the4bookstore.repository.*;
 import vn.bookstore.the4bookstore.security.*;
@@ -34,17 +33,13 @@ class AdminControllerTest {
 
     @MockitoBean private SanPhamRepository sanPhamRepository;
     @MockitoBean private DanhMucRepository danhMucRepository;
-    @MockitoBean private NhaXuatBanRepository nhaXuatBanRepository;
-    @MockitoBean private NhaCungCapRepository nhaCungCapRepository;
     @MockitoBean private TacGiaRepository tacGiaRepository;
     @MockitoBean private SanPhamTacGiaRepository sanPhamTacGiaRepository;
     @MockitoBean private DonHangRepository donHangRepository;
 
-    @MockitoBean private KhoService khoService;
     @MockitoBean private ReportService reportService;
     @MockitoBean private OrderService orderService;
     @MockitoBean private TacGiaService tacGiaService;
-    @MockitoBean private NhaXuatBanService nhaXuatBanService;
 
     @MockitoBean private TaiKhoanRepository taiKhoanRepository;
     @MockitoBean private KhachHangRepository khachHangRepository;
@@ -55,6 +50,7 @@ class AdminControllerTest {
     @MockitoBean private CustomOAuth2UserService customOAuth2UserService;
     @MockitoBean private CustomOidcUserService customOidcUserService;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -108,45 +104,11 @@ class AdminControllerTest {
 
     @Test
     @WithMockUser(username = "admin", roles = {"ADMIN"})
-    void testPublishersPageRendersWithoutTemplateError() throws Exception {
-        NhaXuatBan nxb = new NhaXuatBan();
-        nxb.setMaNXB(1);
-        nxb.setTenNXB("NXB Trẻ");
-        nxb.setDiaChi("161B Lý Chính Thắng, Q3, TP.HCM");
-        nxb.setEmail("hopthu@nxbtre.com.vn");
-        nxb.setSoDienThoai("02839316289");
-
-        when(nhaXuatBanRepository.findAll()).thenReturn(List.of(nxb));
-        when(sanPhamRepository.countByNhaXuatBan_MaNXB(1)).thenReturn(5L);
-
+    void testPublishersPageRedirectsToDashboard() throws Exception {
         mockMvc.perform(get("/admin/publishers"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("admin/publishers"))
-                .andExpect(model().attributeExists("publishers", "bookCounts", "totalPublishers", "publishersWithBooks"));
-    }
-
-    @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
-    void testSavePublisher() throws Exception {
-        mockMvc.perform(post("/admin/publishers/save")
-                        .with(csrf())
-                        .param("tenNXB", "NXB Kim Đồng")
-                        .param("diaChi", "Hà Nội")
-                        .param("email", "info@nxbkimdong.com.vn")
-                        .param("soDienThoai", "02439434730"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/publishers"));
-    }
-
-    @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
-    void testDeletePublisher() throws Exception {
-        when(sanPhamRepository.countByNhaXuatBan_MaNXB(1)).thenReturn(0L);
-
-        mockMvc.perform(post("/admin/publishers/delete/1")
-                        .with(csrf()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/publishers"));
+                .andExpect(redirectedUrl("/admin/dashboard"))
+                .andExpect(flash().attributeExists("infoMessage"));
     }
 
     @Test

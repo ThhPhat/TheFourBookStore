@@ -16,7 +16,6 @@ import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
-@RequiredArgsConstructor
 public class SanPhamService {
 
     public static final List<String> CUSTOMER_STATUSES = List.of("DangBan", "HetHang");
@@ -27,10 +26,63 @@ public class SanPhamService {
     private final ChiTietGioHangRepository chiTietGioHangRepository;
     private final DanhGiaRepository danhGiaRepository;
     private final SanPhamTacGiaRepository sanPhamTacGiaRepository;
+    private final SanPhamYeuThichRepository sanPhamYeuThichRepository;
+
+    public SanPhamService(
+            SanPhamRepository sanPhamRepository,
+            DanhMucRepository danhMucRepository,
+            ChiTietDonHangRepository chiTietDonHangRepository,
+            ChiTietGioHangRepository chiTietGioHangRepository,
+            DanhGiaRepository danhGiaRepository,
+            SanPhamTacGiaRepository sanPhamTacGiaRepository,
+            SanPhamYeuThichRepository sanPhamYeuThichRepository) {
+        this.sanPhamRepository = sanPhamRepository;
+        this.danhMucRepository = danhMucRepository;
+        this.chiTietDonHangRepository = chiTietDonHangRepository;
+        this.chiTietGioHangRepository = chiTietGioHangRepository;
+        this.danhGiaRepository = danhGiaRepository;
+        this.sanPhamTacGiaRepository = sanPhamTacGiaRepository;
+        this.sanPhamYeuThichRepository = sanPhamYeuThichRepository;
+    }
 
     @PersistenceContext
     private EntityManager entityManager;
 
+    /**
+     * Thuật toán tuyển chọn "SÁCH NỔI BẬT THÁNG" (Book of the Month Spotlight Algorithm):
+     *
+     * 1. Tập ứng viên (Candidates):
+     *    Lấy danh sách các cuốn sách đang bán, không bị khóa, shop hoạt động, còn tồn kho.
+     *
+     * 2. Công thức chấm điểm đa tiêu chí (Multi-factor Weighted Scoring Formula):
+     *    Score = (W_recentSales * sales30d) 
+     *          + (W_totalSales * totalSold) 
+     *          + (W_rating * ratingScore) 
+     *          + (W_favorites * favoriteCount) 
+     *          + recencyBonus
+     *
+     *    - sales30d: Số lượng bán trong 30 ngày qua (trọng số cao nhất: x25 điểm/cuốn).
+     *    - totalSold: Tổng lượng bán lũy kế (x2 điểm/cuốn).
+     *    - ratingScore: Điểm đánh giá trung bình nhân logarit số lượt đánh giá.
+     *    - favoriteCount: Lượt đưa vào danh sách yêu thích (x3 điểm/lượt).
+     *    - recencyBonus: Điểm thưởng thời gian xuất bản gần đây (10-25 điểm).
+     *
+     * 3. Cơ chế Fallback an toàn:
+     *    Nếu chưa có đơn hàng hoặc dữ liệu rỗng, tự động chọn cuốn sách bán chạy nhất
+     *    hoặc cuốn sách mới nhất có đầy đủ hình ảnh bìa.
+     */
+    @Cacheable("book_of_the_month")
+    public SanPham getBookOfTheMonth() {
+        List<SanPham> candidates = sanPhamRepository.findSpotlightCandidates(PageRequest.of(0, 1));
+        if (!candidates.isEmpty()) {
+            return candidates.get(0);
+        }
+        Pageable p = PageRequest.of(0, 1);
+        List<SanPham> fallbackList = sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, p);
+        return fallbackList.isEmpty() ? null : fallbackList.get(0);
+    }
+
+    @Cacheable("home_featured_books")
     public List<SanPham> getFeaturedBooks() {
         List<DanhMuc> bookCategories = getCategoriesByLoaiSP("Sach");
         List<Integer> bookCatIds = bookCategories.stream().map(DanhMuc::getMaDanhMuc).toList();
@@ -45,8 +97,14 @@ public class SanPhamService {
         return sanPhamRepository.findTopBooksByTrangThais(CUSTOMER_STATUSES, pageable);
     }
 
+    @Cacheable(value = "home_preview", key = "#loaiSP")
     public List<SanPham> getPreviewByLoaiSP(String loaiSP) {
         return sanPhamRepository.findTop4ByLoaiSPAndTrangThaiIn(loaiSP, CUSTOMER_STATUSES);
+    }
+
+    @Cacheable("guest_top_sold")
+    public List<SanPham> getGuestTopSold() {
+        return sanPhamRepository.findTopProductsForGuest();
     }
 
     @Cacheable(value = "categories", key = "#loaiSP")
@@ -133,7 +191,6 @@ public class SanPhamService {
             String keyword,
             Integer maDanhMuc,
             Integer maTacGia,
-            Integer maNXB,
             String sortBy,
             int page,
             int size) {
@@ -144,11 +201,20 @@ public class SanPhamService {
         if (maTacGia != null && maTacGia > 0) {
             return sanPhamRepository.findByTacGiaId(maTacGia, pageable);
         }
-        if (maNXB != null && maNXB > 0) {
-            return sanPhamRepository.findByNhaXuatBan_MaNXBAndTrangThaiIn(maNXB, CUSTOMER_STATUSES, pageable);
-        }
 
         return searchAndFilter(loaiSP, keyword, maDanhMuc, sortBy, page, size);
+    }
+
+    public Page<SanPham> searchAndFilter(
+            String loaiSP,
+            String keyword,
+            Integer maDanhMuc,
+            Integer maTacGia,
+            Integer maNXB,
+            String sortBy,
+            int page,
+            int size) {
+        return searchAndFilter(loaiSP, keyword, maDanhMuc, maTacGia, sortBy, page, size);
     }
 
     public Page<SanPham> searchAndFilterByGroup(
@@ -162,7 +228,17 @@ public class SanPhamService {
     }
 
     public Optional<SanPham> getById(Integer id) {
-        return sanPhamRepository.findById(id);
+        Optional<SanPham> opt = sanPhamRepository.findById(id);
+        opt.ifPresent(sp -> {
+            if (sp.getSanPhamTacGias() != null) {
+                sp.getSanPhamTacGias().forEach(sptg -> {
+                    if (sptg != null && sptg.getTacGia() != null) {
+                        sptg.getTacGia().getTenTacGia();
+                    }
+                });
+            }
+        });
+        return opt;
     }
 
     public List<SanPham> getRelatedBooks(SanPham sanPham, int limit) {
@@ -191,6 +267,7 @@ public class SanPhamService {
      * - Nếu chưa có đơn hàng: Hard delete (dọn dẹp sạch giỏ hàng, đánh giá, quan hệ tác giả, yêu thích... và xóa khỏi DB).
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"home_featured_books", "home_preview", "guest_top_sold", "book_of_the_month", "categories"}, allEntries = true)
     public void deleteProduct(Integer maSP) {
         SanPham sp = sanPhamRepository.findById(maSP)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm với mã: " + maSP));

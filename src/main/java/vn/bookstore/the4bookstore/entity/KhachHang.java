@@ -20,8 +20,10 @@ public class KhachHang {
     @Column(length = 500)
     private String anhDaiDien;
     
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maTaiKhoan", unique = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private TaiKhoan taiKhoan;
     
     @Column(nullable = false)
