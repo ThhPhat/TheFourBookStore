@@ -26,24 +26,39 @@ import vn.bookstore.the4bookstore.security.CustomOAuth2User;
 import vn.bookstore.the4bookstore.security.CustomOidcUser;
 import vn.bookstore.the4bookstore.security.CustomUserDetails;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @Slf4j
 @Controller
 @RequestMapping("/vendor")
-@RequiredArgsConstructor
 public class VendorController {
+    public VendorController(ShopService shopService, VendorService vendorService, CloudinaryService cloudinaryService, TaiKhoanRepository taiKhoanRepository, DanhMucRepository danhMucRepository, TacGiaRepository tacGiaRepository, SanPhamRepository sanPhamRepository) {
+        this.shopService = shopService;
+        this.vendorService = vendorService;
+        this.cloudinaryService = cloudinaryService;
+        this.taiKhoanRepository = taiKhoanRepository;
+        this.danhMucRepository = danhMucRepository;
+        this.tacGiaRepository = tacGiaRepository;
+        this.sanPhamRepository = sanPhamRepository;
+    }
 
     private final ShopService shopService;
     private final VendorService vendorService;
     private final CloudinaryService cloudinaryService;
     private final TaiKhoanRepository taiKhoanRepository;
     private final DanhMucRepository danhMucRepository;
-    private final NhaXuatBanRepository nhaXuatBanRepository;
+    private final TacGiaRepository tacGiaRepository;
+    private final SanPhamRepository sanPhamRepository;
 
     private TaiKhoan getCurrentUser(Authentication auth) {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) return null;
@@ -84,6 +99,9 @@ public class VendorController {
         if ("ChoDuyet".equalsIgnoreCase(shop.getTrangThai())) {
             return "redirect:/vendor/pending";
         }
+        if ("TuChoi".equalsIgnoreCase(shop.getTrangThai())) {
+            return "redirect:/vendor/rejected";
+        }
         if ("BiKhoa".equalsIgnoreCase(shop.getTrangThai())) {
             return "redirect:/vendor/blocked";
         }
@@ -123,11 +141,32 @@ public class VendorController {
         if ("HoatDong".equalsIgnoreCase(shop.getTrangThai())) {
             return "redirect:/vendor/dashboard";
         }
+        if ("TuChoi".equalsIgnoreCase(shop.getTrangThai())) {
+            return "redirect:/vendor/rejected";
+        }
         if ("BiKhoa".equalsIgnoreCase(shop.getTrangThai())) {
             return "redirect:/vendor/blocked";
         }
         model.addAttribute("shop", shop);
         return "vendor/pending";
+    }
+
+    // --- TRẠNG THÁI HỒ SƠ BỊ TỪ CHỐI ---
+    @GetMapping("/rejected")
+    public String rejectedNotice(Authentication auth, Model model) {
+        Shop shop = getCurrentShop(auth);
+        if (shop == null) return "redirect:/vendor/register";
+        if ("HoatDong".equalsIgnoreCase(shop.getTrangThai())) {
+            return "redirect:/vendor/dashboard";
+        }
+        if ("ChoDuyet".equalsIgnoreCase(shop.getTrangThai())) {
+            return "redirect:/vendor/pending";
+        }
+        if ("BiKhoa".equalsIgnoreCase(shop.getTrangThai())) {
+            return "redirect:/vendor/blocked";
+        }
+        model.addAttribute("shop", shop);
+        return "vendor/rejected";
     }
 
     // --- TRẠNG THÁI GIAN HÀNG TẠM KHÓA ---
@@ -141,13 +180,17 @@ public class VendorController {
         if ("ChoDuyet".equalsIgnoreCase(shop.getTrangThai())) {
             return "redirect:/vendor/pending";
         }
+        if ("TuChoi".equalsIgnoreCase(shop.getTrangThai())) {
+            return "redirect:/vendor/rejected";
+        }
         model.addAttribute("shop", shop);
         return "vendor/blocked";
     }
 
     // --- ĐĂNG KÝ MỞ SHOP ---
     @GetMapping("/register")
-    public String registerForm(Authentication auth, Model model) {
+    public String registerForm(@RequestParam(value = "reapply", required = false) Boolean reapply,
+                               Authentication auth, Model model) {
         TaiKhoan user = getCurrentUser(auth);
         if (user == null) return "redirect:/login";
 
@@ -156,6 +199,14 @@ public class VendorController {
             Shop s = existing.get();
             if ("ChoDuyet".equalsIgnoreCase(s.getTrangThai())) return "redirect:/vendor/pending";
             if ("BiKhoa".equalsIgnoreCase(s.getTrangThai())) return "redirect:/vendor/blocked";
+            if ("TuChoi".equalsIgnoreCase(s.getTrangThai())) {
+                if (Boolean.TRUE.equals(reapply)) {
+                    model.addAttribute("shop", s);
+                    model.addAttribute("isReapply", true);
+                    return "vendor/register";
+                }
+                return "redirect:/vendor/rejected";
+            }
             if (!"DaXoa".equalsIgnoreCase(s.getTrangThai())) {
                 return "redirect:/vendor/dashboard";
             }
@@ -248,18 +299,25 @@ public class VendorController {
     @GetMapping("/products")
     public String products(Authentication auth,
                            @RequestParam(required = false) String keyword,
+                           @RequestParam(required = false) Integer category,
+                           @RequestParam(required = false) String loaiSP,
+                           @RequestParam(required = false, defaultValue = "newest") String sort,
                            @RequestParam(defaultValue = "0") int page,
                            Model model) {
         Shop shop = getCurrentShop(auth);
         String redirect = checkShopAccess(shop);
         if (redirect != null) return redirect;
 
-        Page<SanPham> productPage = vendorService.getShopProducts(shop.getMaShop(), keyword, 
-                PageRequest.of(page, 10, Sort.by(Sort.Direction.DESC, "maSP")));
+        Page<SanPham> productPage = vendorService.getShopProducts(shop.getMaShop(), keyword, category, loaiSP, sort,
+                PageRequest.of(page, 12));
         model.addAttribute("shop", shop);
         model.addAttribute("products", productPage.getContent());
         model.addAttribute("page", productPage);
         model.addAttribute("keyword", keyword);
+        model.addAttribute("category", category);
+        model.addAttribute("loaiSP", loaiSP);
+        model.addAttribute("sort", sort);
+        model.addAttribute("categories", danhMucRepository.findAll());
         return "vendor/products";
     }
 
@@ -272,7 +330,7 @@ public class VendorController {
         model.addAttribute("shop", shop);
         model.addAttribute("sanPham", new SanPham());
         model.addAttribute("danhMucs", danhMucRepository.findAll());
-        model.addAttribute("nhaXuatBans", nhaXuatBanRepository.findAll());
+        model.addAttribute("tacGias", tacGiaRepository.findAll());
         return "vendor/product_form";
     }
 
@@ -289,7 +347,7 @@ public class VendorController {
         model.addAttribute("shop", shop);
         model.addAttribute("sanPham", sp);
         model.addAttribute("danhMucs", danhMucRepository.findAll());
-        model.addAttribute("nhaXuatBans", nhaXuatBanRepository.findAll());
+        model.addAttribute("tacGias", tacGiaRepository.findAll());
         return "vendor/product_form";
     }
 
@@ -298,7 +356,7 @@ public class VendorController {
                               @ModelAttribute SanPham sanPham,
                               @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                               @RequestParam(required = false) Integer maDanhMuc,
-                              @RequestParam(required = false) Integer maNXB,
+                              @RequestParam(required = false) String tenTacGia,
                               RedirectAttributes redirectAttributes) {
         Shop shop = getCurrentShop(auth);
         String redirect = checkShopAccess(shop);
@@ -311,7 +369,7 @@ public class VendorController {
                     sanPham.setHinhAnh(uploadedImg);
                 }
             }
-            vendorService.saveShopProduct(shop.getMaShop(), sanPham, maDanhMuc, maNXB);
+            vendorService.saveShopProduct(shop.getMaShop(), sanPham, maDanhMuc, tenTacGia);
             redirectAttributes.addFlashAttribute("successMessage", "Lưu sản phẩm thành công!");
             return "redirect:/vendor/products";
         } catch (Exception ex) {
@@ -339,6 +397,160 @@ public class VendorController {
         return "redirect:/vendor/products";
     }
 
+    // ==================== TẢI FILE CSV MẪU NHẬP SÁCH CHO GIAN HÀNG ====================
+    @GetMapping("/products/sample-csv")
+    public void downloadSampleProductsCsv(HttpServletResponse response) throws IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"mau_nhap_sach_shop.csv\"");
+
+        try (OutputStream os = response.getOutputStream();
+             PrintWriter writer = new PrintWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8))) {
+            os.write(0xEF);
+            os.write(0xBB);
+            os.write(0xBF);
+
+            writer.println("ISBN,TenSP,GiaBan,SoLuongTon,LoaiSP,MaDanhMuc,MoTa");
+            writer.println("9786043658999,Đắc Nhân Tâm - Khổ Tiêu Chuẩn,85000,100,Sach,1,Sách kinh điển về nghệ thuật ứng xử và kết nối.");
+            writer.println("8935244855523,Sổ Tay Dot Grid Bìa Da Cao Cấp,45000,50,VanPhongPham,2,Sổ tay kẻ chấm dot ghi chép bullet journal.");
+            writer.flush();
+        }
+    }
+
+    // ==================== VENDOR NHẬP SẢN PHẨM HÀNG LOẠT TỪ FILE CSV ====================
+    @PostMapping("/products/import-csv")
+    public String importProductsCsv(Authentication auth,
+                                    @RequestParam("file") MultipartFile file,
+                                    RedirectAttributes ra) {
+        Shop shop = getCurrentShop(auth);
+        String redirect = checkShopAccess(shop);
+        if (redirect != null) return redirect;
+
+        if (file == null || file.isEmpty()) {
+            ra.addFlashAttribute("errorMessage", "Vui lòng chọn file CSV để tải lên!");
+            return "redirect:/vendor/products";
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".csv")) {
+            ra.addFlashAttribute("errorMessage", "Định dạng file không hợp lệ! Vui lòng tải lên file có đuôi .csv");
+            return "redirect:/vendor/products";
+        }
+
+        int addedCount = 0;
+        int updatedCount = 0;
+        int rowIdx = 0;
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                rowIdx++;
+                if (rowIdx == 1) continue; // Bỏ qua header
+                if (line.trim().isEmpty()) continue;
+
+                String[] cols = parseCsvLine(line);
+                if (cols.length < 4) continue;
+
+                String isbn = cols[0].trim();
+                String tenSP = cols[1].trim();
+                int giaBan = parseIntSafe(cols[2], 0);
+                int tonKho = parseIntSafe(cols[3], 0);
+                String loaiSP = cols.length > 4 && !cols[4].isBlank() ? cols[4].trim() : "Sach";
+                Integer maDanhMuc = cols.length > 5 ? parseIntegerSafe(cols[5]) : 1;
+                String moTa = cols.length > 6 ? cols[6].trim() : "";
+
+                if (tenSP.isEmpty()) continue;
+
+                // Kiểm tra xem sách này đã có trong shop chưa
+                Optional<SanPham> existingOpt = Optional.empty();
+                if (!isbn.isEmpty()) {
+                    existingOpt = sanPhamRepository.findByISBNAndShop_MaShop(isbn, shop.getMaShop());
+                }
+
+                if (existingOpt.isPresent()) {
+                    // Cập nhật sách đã có của shop
+                    SanPham sp = existingOpt.get();
+                    sp.setTenSP(tenSP);
+                    sp.setGiaBan(giaBan);
+                    int curStock = sp.getSoLuongTon() != null ? sp.getSoLuongTon() : 0;
+                    sp.setSoLuongTon(curStock + tonKho);
+                    if (!moTa.isEmpty()) sp.setMoTa(moTa);
+                    sanPhamRepository.save(sp);
+                    updatedCount++;
+                } else {
+                    // Thêm mới sản phẩm vào gian hàng của Vendor
+                    SanPham sp = new SanPham();
+                    sp.setISBN(!isbn.isEmpty() ? isbn : "ISBN-" + System.currentTimeMillis() % 1000000000L);
+                    sp.setTenSP(tenSP);
+                    sp.setGiaBan(giaBan);
+                    sp.setSoLuongTon(tonKho);
+                    sp.setSoLuongDaBan(0);
+                    sp.setMucTonToiThieu(5);
+                    sp.setLoaiSP(loaiSP);
+                    sp.setMoTa(moTa);
+                    sp.setTrangThai("DangBan");
+                    sp.setTrangThaiKhoa("BinhThuong");
+                    sp.setNgayTao(LocalDateTime.now());
+                    sp.setShop(shop); // Gắn đúng vào Shop của Vendor
+
+                    if (maDanhMuc != null) {
+                        danhMucRepository.findById(maDanhMuc).ifPresent(sp::setDanhMuc);
+                    }
+                    if (sp.getDanhMuc() == null) {
+                        danhMucRepository.findAll().stream().findFirst().ifPresent(sp::setDanhMuc);
+                    }
+
+                    sanPhamRepository.save(sp);
+                    addedCount++;
+                }
+            }
+
+            ra.addFlashAttribute("successMessage",
+                    String.format("Xử lý file CSV thành công: Thêm mới %d sản phẩm, Cập nhật tồn kho %d sản phẩm vào gian hàng của bạn!", addedCount, updatedCount));
+        } catch (Exception ex) {
+            log.error("Lỗi khi nhập CSV cho shop #{}: ", shop.getMaShop(), ex);
+            ra.addFlashAttribute("errorMessage", "Lỗi xử lý file CSV tại dòng " + rowIdx + ": " + ex.getMessage());
+        }
+
+        return "redirect:/vendor/products";
+    }
+
+    private String[] parseCsvLine(String line) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '\"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                tokens.add(sb.toString());
+                sb.setLength(0);
+            } else {
+                sb.append(c);
+            }
+        }
+        tokens.add(sb.toString());
+        return tokens.toArray(new String[0]);
+    }
+
+    private int parseIntSafe(String val, int def) {
+        try {
+            return Integer.parseInt(val.trim().replace(".", "").replace(",", ""));
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private Integer parseIntegerSafe(String val) {
+        try {
+            return Integer.parseInt(val.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     // --- QUẢN LÝ ĐƠN HÀNG CỦA SHOP (7 TRẠNG THÁI) ---
     @GetMapping("/orders")
     public String orders(Authentication auth,
@@ -355,6 +567,20 @@ public class VendorController {
         model.addAttribute("page", orderPage);
         model.addAttribute("currentStatus", status);
         return "vendor/orders";
+    }
+
+    @PostMapping("/orders/{id}/confirm-payment")
+    public String confirmPayment(Authentication auth, @PathVariable Integer id, RedirectAttributes redirectAttributes) {
+        Shop shop = getCurrentShop(auth);
+        String redirect = checkShopAccess(shop);
+        if (redirect != null) return redirect;
+        try {
+            vendorService.xacNhanThanhToan(id, shop.getMaShop());
+            redirectAttributes.addFlashAttribute("successMessage", "Đã xác nhận thanh toán thành công cho đơn hàng #" + id);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+        return "redirect:/vendor/orders";
     }
 
     @PostMapping("/orders/{id}/confirm")
@@ -526,3 +752,4 @@ public class VendorController {
         return "redirect:/vendor/promotions";
     }
 }
+

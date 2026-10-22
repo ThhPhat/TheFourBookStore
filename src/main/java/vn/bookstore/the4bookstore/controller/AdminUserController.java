@@ -10,11 +10,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import vn.bookstore.the4bookstore.entity.KhachHang;
-import vn.bookstore.the4bookstore.entity.NhanVien;
 import vn.bookstore.the4bookstore.entity.Shop;
 import vn.bookstore.the4bookstore.entity.TaiKhoan;
 import vn.bookstore.the4bookstore.repository.KhachHangRepository;
-import vn.bookstore.the4bookstore.repository.NhanVienRepository;
 import vn.bookstore.the4bookstore.repository.ShopRepository;
 import vn.bookstore.the4bookstore.repository.TaiKhoanRepository;
 
@@ -24,21 +22,38 @@ import org.springframework.security.core.userdetails.UserDetails;
 import vn.bookstore.the4bookstore.security.CustomOAuth2User;
 import vn.bookstore.the4bookstore.security.CustomUserDetails;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import vn.bookstore.the4bookstore.service.SecurityAuditService;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @Controller
 @RequestMapping("/admin/users")
-@RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'QUANLY')")
 public class AdminUserController {
 
     private final TaiKhoanRepository taiKhoanRepository;
     private final KhachHangRepository khachHangRepository;
-    private final NhanVienRepository nhanVienRepository;
     private final ShopRepository shopRepository;
     private final PasswordEncoder passwordEncoder;
     private final org.springframework.security.core.session.SessionRegistry sessionRegistry;
+    private final SecurityAuditService securityAuditService;
+
+    public AdminUserController(TaiKhoanRepository taiKhoanRepository,
+                               KhachHangRepository khachHangRepository,
+                               ShopRepository shopRepository,
+                               PasswordEncoder passwordEncoder,
+                               org.springframework.security.core.session.SessionRegistry sessionRegistry,
+                               @org.springframework.beans.factory.annotation.Autowired(required = false) SecurityAuditService securityAuditService) {
+        this.taiKhoanRepository = taiKhoanRepository;
+        this.khachHangRepository = khachHangRepository;
+        this.shopRepository = shopRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.sessionRegistry = sessionRegistry;
+        this.securityAuditService = securityAuditService;
+    }
 
     private boolean isSuperAdmin(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) return false;
@@ -79,14 +94,12 @@ public class AdminUserController {
         PageRequest pageRequest = PageRequest.of(page, 15);
         Page<TaiKhoan> userPage = taiKhoanRepository.searchAccounts(keyword, role, pageRequest);
 
-        // Nạp thông tin hồ sơ liên kết (Khách hàng, Nhân viên, Shop)
+        // Nạp thông tin hồ sơ liên kết (Khách hàng, Shop)
         Map<Integer, KhachHang> customerProfiles = new HashMap<>();
-        Map<Integer, NhanVien> staffProfiles = new HashMap<>();
         Map<Integer, Shop> shopProfiles = new HashMap<>();
 
         for (TaiKhoan tk : userPage.getContent()) {
             khachHangRepository.findByTaiKhoan(tk).ifPresent(kh -> customerProfiles.put(tk.getMaTaiKhoan(), kh));
-            nhanVienRepository.findByTaiKhoan(tk).ifPresent(nv -> staffProfiles.put(tk.getMaTaiKhoan(), nv));
             shopRepository.findByTaiKhoan(tk).ifPresent(sp -> shopProfiles.put(tk.getMaTaiKhoan(), sp));
         }
 
@@ -95,14 +108,13 @@ public class AdminUserController {
         model.addAttribute("keyword", keyword != null ? keyword : "");
         model.addAttribute("selectedRole", role != null ? role : "");
         model.addAttribute("customerProfiles", customerProfiles);
-        model.addAttribute("staffProfiles", staffProfiles);
         model.addAttribute("shopProfiles", shopProfiles);
 
         // Số liệu thống kê
         model.addAttribute("totalAccounts", taiKhoanRepository.count());
         model.addAttribute("totalUsers", taiKhoanRepository.countByVaiTro("USER"));
         model.addAttribute("totalVendors", taiKhoanRepository.countByVaiTro("VENDOR"));
-        model.addAttribute("totalStaff", taiKhoanRepository.countByVaiTro("MANAGER") + taiKhoanRepository.countByVaiTro("ADMIN") + taiKhoanRepository.countByVaiTro("NHANVIENKHO"));
+        model.addAttribute("totalStaff", taiKhoanRepository.countByVaiTro("MANAGER") + taiKhoanRepository.countByVaiTro("ADMIN"));
         model.addAttribute("totalLocked", taiKhoanRepository.countByTrangThai("BiKhoa"));
 
         return "admin/users";
@@ -135,10 +147,19 @@ public class AdminUserController {
 
         boolean willLock = !"BiKhoa".equalsIgnoreCase(tk.getTrangThai());
         tk.setTrangThai(willLock ? "BiKhoa" : "HoatDong");
+        // Tăng tokenVersion để vô hiệu hóa tất cả JWT đang lưu hành của tài khoản này
+        tk.setTokenVersion(tk.getTokenVersion() == null ? 1 : tk.getTokenVersion() + 1);
         taiKhoanRepository.save(tk);
 
         if (willLock) {
             invalidateUserSessions(tk);
+            if (securityAuditService != null) {
+                securityAuditService.logAccountLocked(tk.getTenDangNhap(), auth != null ? auth.getName() : "SYSTEM");
+            }
+        } else {
+            if (securityAuditService != null) {
+                securityAuditService.logAccountUnlocked(tk.getTenDangNhap(), auth != null ? auth.getName() : "SYSTEM");
+            }
         }
 
         String msg = willLock ? "Đã KHÓA tài khoản @" + tk.getTenDangNhap() + " thành công (đã hủy phiên đăng nhập nếu có)!" : "Đã MỞ KHÓA tài khoản @" + tk.getTenDangNhap() + " thành công!";
@@ -174,8 +195,18 @@ public class AdminUserController {
             return "redirect:/admin/users";
         }
 
-        tk.setVaiTro(newRole.trim().toUpperCase());
+        String upperRole = newRole.trim().toUpperCase();
+        String oldRole = tk.getVaiTro();
+        tk.setVaiTro(upperRole);
+        // Tăng tokenVersion để buộc người dùng đăng nhập lại với quyền mới
+        tk.setTokenVersion(tk.getTokenVersion() == null ? 1 : tk.getTokenVersion() + 1);
         taiKhoanRepository.save(tk);
+        if (securityAuditService != null) {
+            securityAuditService.logRoleChange(tk.getTenDangNhap(), oldRole, upperRole, auth != null ? auth.getName() : "SYSTEM");
+        }
+
+        // Hủy phiên đăng nhập cũ để người dùng nhận vai trò mới khi truy cập lại
+        invalidateUserSessions(tk);
 
         ra.addFlashAttribute("successMessage", "Đã cập nhật vai trò tài khoản @" + tk.getTenDangNhap() + " thành [" + newRole + "] thành công!");
         return "redirect:/admin/users";

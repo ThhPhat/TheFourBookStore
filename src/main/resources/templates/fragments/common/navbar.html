@@ -9,9 +9,26 @@
             <div class="max-w-7xl mx-auto flex items-center justify-between">
                 <span>✨ Ưu đãi đặc biệt: Miễn phí vận chuyển hỏa tốc toàn quốc cho đơn hàng từ 350.000 đ!</span>
                 <div class="flex items-center gap-4 text-[11px]">
-                    <a th:href="@{/vendor}" class="hover:underline flex items-center gap-1 font-bold">
+                    <!-- Đã có gian hàng hoạt động hoặc là Admin/Manager/Vendor -->
+                    <a th:if="${(currentShop != null and currentShop.trangThai == 'HoatDong') or (#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')'))}"
+                       th:href="@{/vendor/dashboard}"
+                       class="hover:underline flex items-center gap-1 font-bold text-on-primary">
                         <span class="material-symbols-outlined text-[14px]">storefront</span>
                         <span>Kênh Người Bán</span>
+                    </a>
+                    <!-- Đã nộp đơn nhưng đang chờ duyệt -->
+                    <a th:if="${currentShop != null and currentShop.trangThai == 'ChoDuyet' and !#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')')}"
+                       th:href="@{/vendor/pending}"
+                       class="hover:underline flex items-center gap-1 font-bold text-amber-200">
+                        <span class="material-symbols-outlined text-[14px]">hourglass_top</span>
+                        <span>Gian Hàng: Chờ Duyệt</span>
+                    </a>
+                    <!-- Chưa có gian hàng (User thường hoặc Guest) -->
+                    <a th:if="${currentShop == null and !#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')')}"
+                       th:href="@{/vendor/register}"
+                       class="hover:underline flex items-center gap-1 font-bold opacity-90 hover:opacity-100">
+                        <span class="material-symbols-outlined text-[14px]">storefront</span>
+                        <span>Đăng Ký Mở Gian Hàng</span>
                     </a>
                 </div>
             </div>
@@ -22,7 +39,7 @@
             <div class="flex items-center justify-between gap-space-md w-full">
                 <!-- Brand Logo -->
                 <a class="flex items-center gap-space-sm shrink-0" th:href="@{/}">
-                    <img alt="The4BookStore Logo" class="h-9 w-auto object-contain" th:src="@{/images/logo.svg}"/>
+                    <img alt="The4BookStore Logo" class="h-9 w-auto object-contain" th:src="@{/images/Logo4bs.png}"/>
                 </a>
 
                 <!-- Live Search Bar with Category Mega Dropdown -->
@@ -45,9 +62,9 @@
                             <!-- TẤT CẢ DANH MỤC / TẤT CẢ SẢN PHẨM HERO OPTION -->
                             <div class="mb-space-sm pb-space-xs border-b border-surface-container">
                                 <a th:href="@{/san-pham}" onclick="closeNavCat()"
-                                   class="flex items-center justify-between p-3 rounded-xl bg-primary/10 hover:bg-primary text-primary hover:text-on-primary transition-all group shadow-sm">
+                                   class="nav-all-cat-btn flex items-center justify-between p-3 rounded-xl bg-primary/10 hover:bg-primary active:bg-primary text-primary hover:!text-white active:!text-white transition-all group shadow-sm active:scale-[0.99] cursor-pointer">
                                     <div class="flex items-center gap-2.5">
-                                        <span class="material-symbols-outlined text-[22px]">apps</span>
+                                        <span class="material-symbols-outlined text-[22px] transition-colors">apps</span>
                                         <div class="flex flex-col text-left">
                                             <span class="font-bold text-xs uppercase tracking-wider">Tất Cả Danh Mục</span>
                                             <span class="text-[11px] opacity-80">Xem toàn bộ danh mục &amp; tất cả sản phẩm</span>
@@ -155,7 +172,7 @@
                         <span class="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
                         <input name="q"
                                class="w-full bg-transparent border-0 text-on-surface placeholder:text-on-surface-variant focus:outline-none font-body-md text-xs md:text-sm py-2"
-                               placeholder="Tìm kiếm tên sách, tác giả, gian hàng..."
+                               placeholder="Tìm kiếm sản phẩm, tác giả, gian hàng..."
                                type="text"/>
                         <button type="submit" class="hidden">Tìm</button>
                     </form>
@@ -167,10 +184,6 @@
                     <a sec:authorize="hasAnyRole('ADMIN', 'QUANLY')" th:href="@{/admin/dashboard}" class="inline-flex items-center gap-1 px-space-sm py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-semibold hover:bg-primary-container transition-colors shadow-sm">
                         <span class="material-symbols-outlined text-[18px]">admin_panel_settings</span>
                         <span>Quản Trị</span>
-                    </a>
-                    <a sec:authorize="hasRole('NHANVIENKHO')" th:href="@{/admin/kho}" class="inline-flex items-center gap-1 px-space-sm py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-semibold hover:bg-primary-container transition-colors shadow-sm">
-                        <span class="material-symbols-outlined text-[18px]">warehouse</span>
-                        <span>Quản Lý Kho</span>
                     </a>
 
                     <!-- Client Notification Bell (Visible for Logged-In Users) -->
@@ -238,7 +251,8 @@
                                     class="flex items-center gap-space-xs pl-space-xs cursor-pointer rounded-full p-1 hover:bg-surface-container transition-colors"
                                     title="Tài khoản &amp; Hồ sơ cá nhân">
                                 <img alt="Tài khoản" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary/20 shadow-sm"
-                                     th:src="${userAvatar}"/>
+                                     th:src="${userAvatar}"
+                                     onerror="this.src='/images/default-avatar.svg'"/>
                                 <span class="font-label-md text-on-surface text-xs font-semibold hidden md:inline" th:text="${userDisplayName}">User</span>
                                 <span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface text-[18px]">expand_more</span>
                             </button>
@@ -256,15 +270,15 @@
                                     </a>
                                     <a th:href="@{/profile/addresses}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-primary">location_on</span>
-                                        <span>Sổ địa chỉ nhận hàng</span>
+                                        <span>Xem địa chỉ</span>
                                     </a>
                                     <a th:href="@{/profile/favorites}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-rose-500">favorite</span>
-                                        <span>Sách yêu thích</span>
+                                        <span>Sản phẩm yêu thích</span>
                                     </a>
                                     <a th:href="@{/profile/recently-viewed}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-amber-500">history</span>
-                                        <span>Sách đã xem gần đây</span>
+                                        <span>Sản phẩm đã xem gần đây</span>
                                     </a>
                                     <a th:href="@{/profile#orders-section}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-on-surface-variant">receipt_long</span>
@@ -273,8 +287,44 @@
                                     
                                     <div class="h-[1px] bg-surface-container my-1"></div>
 
-                                    <!-- Kênh người bán / Đăng ký shop -->
-                                    <a th:href="@{/vendor}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors">
+                                    <!-- Kênh người bán / Đăng ký shop phân nhánh theo trạng thái -->
+                                    <!-- 1. Chưa có gian hàng -> Hiển thị "Đăng ký mở gian hàng" -->
+                                    <a th:if="${currentShop == null and !#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')')}"
+                                       th:href="@{/vendor/register}"
+                                       class="flex items-center justify-between px-4 py-2 font-label-md text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="material-symbols-outlined text-[18px] text-emerald-600">add_business</span>
+                                            <span>Đăng ký mở gian hàng</span>
+                                        </div>
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Mới</span>
+                                    </a>
+
+                                    <!-- 2. Đã nộp đơn, đang chờ BQT duyệt -> Hiển thị "Gian hàng (Chờ duyệt)" -->
+                                    <a th:if="${currentShop != null and currentShop.trangThai == 'ChoDuyet' and !#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')')}"
+                                       th:href="@{/vendor/pending}"
+                                       class="flex items-center justify-between px-4 py-2 font-label-md text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="material-symbols-outlined text-[18px] text-amber-600">hourglass_top</span>
+                                            <span>Gian hàng của tôi</span>
+                                        </div>
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Chờ duyệt</span>
+                                    </a>
+
+                                    <!-- 3. Bị tạm khóa -> Hiển thị "Gian hàng (Bị khóa)" -->
+                                    <a th:if="${currentShop != null and currentShop.trangThai == 'BiKhoa' and !#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')')}"
+                                       th:href="@{/vendor/blocked}"
+                                       class="flex items-center justify-between px-4 py-2 font-label-md text-xs font-semibold text-rose-700 hover:bg-rose-50 transition-colors">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="material-symbols-outlined text-[18px] text-rose-600">lock</span>
+                                            <span>Gian hàng của tôi</span>
+                                        </div>
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Bị khóa</span>
+                                    </a>
+
+                                    <!-- 4. Đã có gian hàng hoạt động hoặc là Admin/Manager/Vendor -> Hiển thị "Kênh Người Bán" -->
+                                    <a th:if="${(currentShop != null and currentShop.trangThai == 'HoatDong') or (#authorization.expression('hasAnyRole(''VENDOR'', ''ADMIN'', ''MANAGER'', ''QUANLY'')'))}"
+                                       th:href="@{/vendor/dashboard}"
+                                       class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-emerald-600">storefront</span>
                                         <span>Kênh Người Bán</span>
                                     </a>

@@ -13,11 +13,7 @@ import vn.bookstore.the4bookstore.entity.SanPham;
 import vn.bookstore.the4bookstore.service.DanhMucService;
 import vn.bookstore.the4bookstore.service.SanPhamService;
 import vn.bookstore.the4bookstore.entity.KhachHang;
-import vn.bookstore.the4bookstore.entity.TaiKhoan;
-import vn.bookstore.the4bookstore.repository.KhachHangRepository;
-import vn.bookstore.the4bookstore.repository.TaiKhoanRepository;
 import vn.bookstore.the4bookstore.service.TacGiaService;
-import vn.bookstore.the4bookstore.service.NhaXuatBanService;
 import vn.bookstore.the4bookstore.service.UserInteractionService;
 import org.springframework.security.core.Authentication;
 
@@ -28,19 +24,26 @@ public class ProductController {
 
     private final SanPhamService sanPhamService;
     private final TacGiaService tacGiaService;
-    private final NhaXuatBanService nhaXuatBanService;
     private final UserInteractionService userInteractionService;
-    private final KhachHangRepository khachHangRepository;
-    private final TaiKhoanRepository taiKhoanRepository;
     private final vn.bookstore.the4bookstore.service.ShopService shopService;
+    private final vn.bookstore.the4bookstore.service.CurrentUserService currentUserService;
 
-    private KhachHang getCurrentKhachHang(Authentication auth) {
+    private KhachHang getCurrentKhachHang(Authentication auth, jakarta.servlet.http.HttpServletRequest request) {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) return null;
-        TaiKhoan tk = taiKhoanRepository.findByEmail(auth.getName())
-                .or(() -> taiKhoanRepository.findByTenDangNhap(auth.getName()))
-                .orElse(null);
-        if (tk == null) return null;
-        return khachHangRepository.findByTaiKhoan(tk).orElse(null);
+        if (request != null) {
+            Object cached = request.getAttribute("CURRENT_KHACH_HANG_CACHE");
+            if (cached instanceof KhachHang kh) return kh;
+            if (Boolean.TRUE.equals(request.getAttribute("CURRENT_KHACH_HANG_CACHE_NULL"))) return null;
+        }
+        KhachHang kh = currentUserService.getCurrentKhachHang(auth);
+        if (request != null) {
+            if (kh != null) {
+                request.setAttribute("CURRENT_KHACH_HANG_CACHE", kh);
+            } else {
+                request.setAttribute("CURRENT_KHACH_HANG_CACHE_NULL", true);
+            }
+        }
+        return kh;
     }
 
     // CẤP 0: Landing page — Tất cả sản phẩm (hoặc hiển thị kết quả nếu người dùng tìm kiếm / lọc)
@@ -90,7 +93,7 @@ public class ProductController {
         model.addAttribute("categoriesVpp",     categoriesVpp);
         model.addAttribute("categoriesQuaTang", categoriesQuaTang);
         model.addAttribute("authors",           tacGiaService.getAll());
-        model.addAttribute("publishers",        nhaXuatBanService.getAll());
+        model.addAttribute("publishers",        List.of());
 
         if (loaiSP != null && !loaiSP.isBlank() && !"ALL".equalsIgnoreCase(loaiSP)) {
             model.addAttribute("categories", sanPhamService.getCategoriesByLoaiSP(loaiSP));
@@ -167,7 +170,7 @@ public class ProductController {
         model.addAttribute("categoriesVpp",   sanPhamService.getCategoriesByLoaiSP("VanPhongPham"));
         model.addAttribute("categoriesQuaTang", sanPhamService.getCategoriesByLoaiSP("QuaTang"));
         model.addAttribute("authors",         tacGiaService.getAll());
-        model.addAttribute("publishers",      nhaXuatBanService.getAll());
+        model.addAttribute("publishers",      List.of());
         model.addAttribute("selectedDanhMuc", validDanhMuc);
         model.addAttribute("selectedTacGia",  tacGia);
         model.addAttribute("selectedNxb",     nxb);
@@ -200,7 +203,7 @@ public class ProductController {
 
     // Chi tiết sản phẩm
     @GetMapping("/{id:[0-9]+}")
-    public String productDetail(@PathVariable Integer id, Authentication auth, Model model, RedirectAttributes ra) {
+    public String productDetail(@PathVariable Integer id, Authentication auth, jakarta.servlet.http.HttpServletRequest request, Model model, RedirectAttributes ra) {
         Optional<SanPham> opt = sanPhamService.getById(id);
         if (opt.isEmpty()) {
             if (ra != null) ra.addFlashAttribute("errorMessage", "Sản phẩm không tồn tại!");
@@ -217,14 +220,16 @@ public class ProductController {
             return "redirect:/san-pham";
         }
 
-        KhachHang kh = getCurrentKhachHang(auth);
+        KhachHang kh = getCurrentKhachHang(auth, request);
         boolean isFavorite = false;
         List<Integer> eligibleOrderIds = List.of();
+        boolean hasPurchased = false;
 
         if (kh != null) {
-            userInteractionService.recordView(kh, id);
+            userInteractionService.recordView(kh, sanPham);
             isFavorite = userInteractionService.isFavorite(kh, id);
             eligibleOrderIds = userInteractionService.getEligibleOrderIdsForReview(kh, id);
+            hasPurchased = userInteractionService.hasPurchasedProduct(kh, id);
         }
 
         List<vn.bookstore.the4bookstore.entity.DanhGia> reviews = userInteractionService.getReviewsForProduct(sanPham);
@@ -238,6 +243,7 @@ public class ProductController {
         model.addAttribute("avgRating", avgRating);
         model.addAttribute("eligibleOrderIds", eligibleOrderIds);
         model.addAttribute("canReview", !eligibleOrderIds.isEmpty());
+        model.addAttribute("hasPurchased", hasPurchased);
         model.addAttribute("isLoggedIn", kh != null);
 
         return "products/detail";

@@ -34,7 +34,6 @@ class ProductControllerTest {
     @MockitoBean private SanPhamService sanPhamService;
     @MockitoBean private DanhMucService danhMucService;
     @MockitoBean private TacGiaService tacGiaService;
-    @MockitoBean private NhaXuatBanService nhaXuatBanService;
     @MockitoBean private ShopService shopService;
 
     @MockitoBean private SanPhamRepository sanPhamRepository;
@@ -42,6 +41,7 @@ class ProductControllerTest {
     @MockitoBean private TaiKhoanRepository taiKhoanRepository;
     @MockitoBean private KhachHangRepository khachHangRepository;
     @MockitoBean private UserInteractionService userInteractionService;
+    @MockitoBean private CurrentUserService currentUserService;
     @MockitoBean private PasswordEncoder passwordEncoder;
     @MockitoBean private JwtAuthenticationFilter jwtAuthenticationFilter;
     @MockitoBean private JwtLogoutSuccessHandler jwtLogoutSuccessHandler;
@@ -49,6 +49,7 @@ class ProductControllerTest {
     @MockitoBean private CustomOAuth2UserService customOAuth2UserService;
     @MockitoBean private CustomOidcUserService customOidcUserService;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
     private DanhMuc catSach;
     private DanhMuc catVpp;
@@ -77,7 +78,6 @@ class ProductControllerTest {
         when(sanPhamService.getCategoriesByLoaiSP("VanPhongPham")).thenReturn(List.of(catVpp));
         when(sanPhamService.getCategoriesByLoaiSP("QuaTang")).thenReturn(List.of());
         when(tacGiaService.getAll()).thenReturn(List.of());
-        when(nhaXuatBanService.getAll()).thenReturn(List.of());
         when(userInteractionService.getReviewsForProduct(any())).thenReturn(List.of());
         when(userInteractionService.getAverageRating(any())).thenReturn(0.0);
     }

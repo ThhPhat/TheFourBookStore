@@ -8,12 +8,12 @@ import lombok.*;
 @Data @NoArgsConstructor @AllArgsConstructor
 public class ChiTietKiemKe {
     @Id
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maPhieuKiemKe")
     private PhieuKiemKe phieuKiemKe;
     
     @Id
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maSP")
     private SanPham sanPham;
     
@@ -21,6 +21,8 @@ public class ChiTietKiemKe {
     private Integer soLuongHeThong;
     @Column(nullable = false)
     private Integer soLuongThucTe;
+    @Column(name = "chenh_lech")
+    private Integer chenhLech = 0;
     @Column(length = 500)
     private String lyDo;
 }

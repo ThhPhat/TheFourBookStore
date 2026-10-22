@@ -1,5 +1,7 @@
 package vn.bookstore.the4bookstore.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -7,62 +9,112 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import vn.bookstore.the4bookstore.entity.DanhMuc;
 import vn.bookstore.the4bookstore.entity.KhachHang;
 import vn.bookstore.the4bookstore.entity.TaiKhoan;
-import vn.bookstore.the4bookstore.repository.DanhMucRepository;
 import vn.bookstore.the4bookstore.repository.KhachHangRepository;
-import vn.bookstore.the4bookstore.repository.SanPhamRepository;
 import vn.bookstore.the4bookstore.repository.TaiKhoanRepository;
 import vn.bookstore.the4bookstore.security.CustomOAuth2User;
 import vn.bookstore.the4bookstore.security.CustomOidcUser;
 import vn.bookstore.the4bookstore.security.CustomUserDetails;
+import vn.bookstore.the4bookstore.service.DanhMucService;
+import vn.bookstore.the4bookstore.service.GioHangService;
+import vn.bookstore.the4bookstore.service.SanPhamService;
+import vn.bookstore.the4bookstore.service.ShopService;
 
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 @ControllerAdvice
 public class GlobalControllerAdvice {
 
-    private final KhachHangRepository khachHangRepository;
-    private final TaiKhoanRepository taiKhoanRepository;
+    @Autowired(required = false)
+    private KhachHangRepository khachHangRepository;
+    @Autowired(required = false)
+    private TaiKhoanRepository taiKhoanRepository;
+    @Autowired(required = false)
+    private DanhMucService danhMucService;
+    @Autowired(required = false)
+    private SanPhamService sanPhamService;
+    @Autowired(required = false)
+    private GioHangService gioHangService;
+    @Autowired(required = false)
+    private ShopService shopService;
 
-    private final DanhMucRepository danhMucRepository;
-
-    private final SanPhamRepository sanPhamRepository;
-
-    private final vn.bookstore.the4bookstore.service.GioHangService gioHangService;
-    private final vn.bookstore.the4bookstore.repository.ShopRepository shopRepository;
+    public GlobalControllerAdvice() {
+    }
 
     public GlobalControllerAdvice(KhachHangRepository khachHangRepository,
                                   TaiKhoanRepository taiKhoanRepository,
-                                  @org.springframework.beans.factory.annotation.Autowired(required = false) DanhMucRepository danhMucRepository,
-                                  @org.springframework.beans.factory.annotation.Autowired(required = false) SanPhamRepository sanPhamRepository,
-                                  @org.springframework.beans.factory.annotation.Autowired(required = false) vn.bookstore.the4bookstore.service.GioHangService gioHangService,
-                                  @org.springframework.beans.factory.annotation.Autowired(required = false) vn.bookstore.the4bookstore.repository.ShopRepository shopRepository) {
+                                  DanhMucService danhMucService,
+                                  SanPhamService sanPhamService,
+                                  GioHangService gioHangService,
+                                  ShopService shopService) {
         this.khachHangRepository = khachHangRepository;
         this.taiKhoanRepository = taiKhoanRepository;
-        this.danhMucRepository = danhMucRepository;
-        this.sanPhamRepository = sanPhamRepository;
+        this.danhMucService = danhMucService;
+        this.sanPhamService = sanPhamService;
         this.gioHangService = gioHangService;
-        this.shopRepository = shopRepository;
+        this.shopService = shopService;
     }
 
+    /**
+     * Tối ưu: Chỉ đếm shop chờ duyệt đối với tài khoản Quản trị viên (ADMIN, MANAGER),
+     * đồng thời sử dụng Cache để tránh query liên tục ở mọi request.
+     */
     @ModelAttribute("pendingShopCount")
-    public long getPendingShopCount() {
-        if (shopRepository == null) return 0;
+    public long getPendingShopCount(Authentication authentication) {
+        if (shopService == null || authentication == null || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return 0;
+        }
+        boolean canView = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().contains("ADMIN") || a.getAuthority().contains("MANAGER"));
+        if (!canView) return 0;
+
         try {
-            return shopRepository.countByTrangThai("ChoDuyet");
+            return shopService.countPendingShops();
         } catch (Exception e) {
             return 0;
         }
     }
 
     @ModelAttribute("cartItemCount")
-    public int getCartItemCount(Authentication authentication, jakarta.servlet.http.HttpSession session) {
+    public int getCartItemCount(Authentication authentication, HttpSession session, HttpServletRequest request) {
         if (gioHangService == null) return 0;
-        KhachHang kh = getKhachHangFromAuth(authentication);
+        KhachHang kh = getCachedKhachHang(authentication, request);
         if (kh != null) {
             return gioHangService.getCartItemCount(kh);
         }
-        return gioHangService.getSessionCartItemCount(session);
+        return 0;
+    }
+
+    /**
+     * Tối ưu Request-Scope Caching:
+     * Tái sử dụng đối tượng KhachHang trong cùng 1 HTTP Request thay vì gọi findByTaiKhoan 3-4 lần.
+     */
+    private KhachHang getCachedKhachHang(Authentication authentication, HttpServletRequest request) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return null;
+        }
+        if (request != null) {
+            Object cached = request.getAttribute("CURRENT_KHACH_HANG_CACHE");
+            if (cached instanceof KhachHang kh) {
+                return kh;
+            }
+            if (Boolean.TRUE.equals(request.getAttribute("CURRENT_KHACH_HANG_CACHE_NULL"))) {
+                return null;
+            }
+        }
+
+        KhachHang kh = getKhachHangFromAuth(authentication);
+        if (request != null) {
+            if (kh != null) {
+                request.setAttribute("CURRENT_KHACH_HANG_CACHE", kh);
+            } else {
+                request.setAttribute("CURRENT_KHACH_HANG_CACHE_NULL", Boolean.TRUE);
+            }
+        }
+        return kh;
     }
 
     private KhachHang getKhachHangFromAuth(Authentication authentication) {
@@ -89,55 +141,32 @@ public class GlobalControllerAdvice {
         return null;
     }
 
+    /**
+     * Tối ưu: Lấy danh mục từ DanhMucService & SanPhamService đã được @Cacheable trong bộ nhớ.
+     * Loại bỏ 8-10 câu SQL gửi qua Internet cho mỗi request navbar.
+     */
     @ModelAttribute("allActiveCategories")
     public List<DanhMuc> getAllActiveCategories() {
-        if (danhMucRepository == null) return List.of();
-        return danhMucRepository.findAll().stream()
-                .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
-                .toList();
+        if (danhMucService == null) return List.of();
+        return danhMucService.getAllActive();
     }
 
     @ModelAttribute("navbarCategoriesSach")
     public List<DanhMuc> getNavbarCategoriesSach() {
-        if (sanPhamRepository == null || danhMucRepository == null) return List.of();
-        List<DanhMuc> distinctByProduct = sanPhamRepository.findDistinctDanhMucByLoaiSP("Sach");
-        return danhMucRepository.findAll().stream()
-                .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
-                .filter(dm -> {
-                    String name = dm.getTenDanhMuc().toLowerCase();
-                    boolean isVpp = name.contains("bút") || name.contains("sổ") || name.contains("dụng cụ") || name.contains("văn phòng phẩm");
-                    boolean isQuaTang = name.contains("túi") || name.contains("book nook") || name.contains("boardgame") || name.contains("quà tặng") || name.contains("nến");
-                    return (!isVpp && !isQuaTang) || distinctByProduct.stream().anyMatch(d -> d.getMaDanhMuc().equals(dm.getMaDanhMuc()));
-                })
-                .toList();
+        if (sanPhamService == null) return List.of();
+        return sanPhamService.getCategoriesByLoaiSP("Sach");
     }
 
     @ModelAttribute("navbarCategoriesVpp")
     public List<DanhMuc> getNavbarCategoriesVpp() {
-        if (sanPhamRepository == null || danhMucRepository == null) return List.of();
-        List<DanhMuc> distinctByProduct = sanPhamRepository.findDistinctDanhMucByLoaiSP("VanPhongPham");
-        return danhMucRepository.findAll().stream()
-                .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
-                .filter(dm -> {
-                    String name = dm.getTenDanhMuc().toLowerCase();
-                    boolean isVpp = name.contains("bút") || name.contains("sổ") || name.contains("dụng cụ") || name.contains("văn phòng phẩm");
-                    return isVpp || distinctByProduct.stream().anyMatch(d -> d.getMaDanhMuc().equals(dm.getMaDanhMuc()));
-                })
-                .toList();
+        if (sanPhamService == null) return List.of();
+        return sanPhamService.getCategoriesByLoaiSP("VanPhongPham");
     }
 
     @ModelAttribute("navbarCategoriesQuaTang")
     public List<DanhMuc> getNavbarCategoriesQuaTang() {
-        if (sanPhamRepository == null || danhMucRepository == null) return List.of();
-        List<DanhMuc> distinctByProduct = sanPhamRepository.findDistinctDanhMucByLoaiSP("QuaTang");
-        return danhMucRepository.findAll().stream()
-                .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
-                .filter(dm -> {
-                    String name = dm.getTenDanhMuc().toLowerCase();
-                    boolean isQuaTang = name.contains("túi") || name.contains("book nook") || name.contains("boardgame") || name.contains("quà tặng") || name.contains("nến");
-                    return isQuaTang || distinctByProduct.stream().anyMatch(d -> d.getMaDanhMuc().equals(dm.getMaDanhMuc()));
-                })
-                .toList();
+        if (sanPhamService == null) return List.of();
+        return sanPhamService.getCategoriesByLoaiSP("QuaTang");
     }
 
     @ModelAttribute("navbarCategories")
@@ -145,23 +174,21 @@ public class GlobalControllerAdvice {
         return getAllActiveCategories();
     }
 
-    private String getCustomAvatar(Authentication authentication) {
+    private String getCustomAvatar(Authentication authentication, HttpServletRequest request) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
 
         Object principal = authentication.getPrincipal();
+        KhachHang cachedKh = getCachedKhachHang(authentication, request);
 
         if (principal instanceof CustomOAuth2User oAuth2User) {
             String picture = oAuth2User.getPicture();
             if (picture != null && !picture.isBlank() && !picture.contains("manager-avatar.png")) {
                 return picture;
             }
-            if (oAuth2User.getTaiKhoan() != null) {
-                Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(oAuth2User.getTaiKhoan());
-                if (khOpt.isPresent() && khOpt.get().getAnhDaiDien() != null && !khOpt.get().getAnhDaiDien().isBlank() && !khOpt.get().getAnhDaiDien().contains("manager-avatar.png")) {
-                    return khOpt.get().getAnhDaiDien();
-                }
+            if (cachedKh != null && cachedKh.getAnhDaiDien() != null && !cachedKh.getAnhDaiDien().isBlank() && !cachedKh.getAnhDaiDien().contains("manager-avatar.png")) {
+                return cachedKh.getAnhDaiDien();
             }
         }
 
@@ -170,11 +197,8 @@ public class GlobalControllerAdvice {
             if (picture != null && !picture.isBlank() && !picture.contains("manager-avatar.png")) {
                 return picture;
             }
-            if (oidcUser.getTaiKhoan() != null) {
-                Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(oidcUser.getTaiKhoan());
-                if (khOpt.isPresent() && khOpt.get().getAnhDaiDien() != null && !khOpt.get().getAnhDaiDien().isBlank() && !khOpt.get().getAnhDaiDien().contains("manager-avatar.png")) {
-                    return khOpt.get().getAnhDaiDien();
-                }
+            if (cachedKh != null && cachedKh.getAnhDaiDien() != null && !cachedKh.getAnhDaiDien().isBlank() && !cachedKh.getAnhDaiDien().contains("manager-avatar.png")) {
+                return cachedKh.getAnhDaiDien();
             }
         }
 
@@ -186,22 +210,14 @@ public class GlobalControllerAdvice {
             if (pic != null && !pic.toString().isBlank() && !pic.toString().contains("manager-avatar.png")) {
                 return pic.toString();
             }
-            Object emailObj = oauth2User.getAttribute("email");
-            if (emailObj != null) {
-                Optional<TaiKhoan> tkOpt = taiKhoanRepository.findByEmail(emailObj.toString());
-                if (tkOpt.isPresent()) {
-                    Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(tkOpt.get());
-                    if (khOpt.isPresent() && khOpt.get().getAnhDaiDien() != null && !khOpt.get().getAnhDaiDien().isBlank() && !khOpt.get().getAnhDaiDien().contains("manager-avatar.png")) {
-                        return khOpt.get().getAnhDaiDien();
-                    }
-                }
+            if (cachedKh != null && cachedKh.getAnhDaiDien() != null && !cachedKh.getAnhDaiDien().isBlank() && !cachedKh.getAnhDaiDien().contains("manager-avatar.png")) {
+                return cachedKh.getAnhDaiDien();
             }
         }
 
-        if (principal instanceof CustomUserDetails userDetails) {
-            Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(userDetails.getTaiKhoan());
-            if (khOpt.isPresent() && khOpt.get().getAnhDaiDien() != null && !khOpt.get().getAnhDaiDien().isBlank() && !khOpt.get().getAnhDaiDien().contains("manager-avatar.png")) {
-                return khOpt.get().getAnhDaiDien();
+        if (principal instanceof CustomUserDetails) {
+            if (cachedKh != null && cachedKh.getAnhDaiDien() != null && !cachedKh.getAnhDaiDien().isBlank() && !cachedKh.getAnhDaiDien().contains("manager-avatar.png")) {
+                return cachedKh.getAnhDaiDien();
             }
         }
 
@@ -209,8 +225,8 @@ public class GlobalControllerAdvice {
     }
 
     @ModelAttribute("userAvatar")
-    public String getUserAvatar(Authentication authentication) {
-        String customAvatar = getCustomAvatar(authentication);
+    public String getUserAvatar(Authentication authentication, HttpServletRequest request) {
+        String customAvatar = getCustomAvatar(authentication, request);
         if (customAvatar != null) {
             return customAvatar;
         }
@@ -218,32 +234,46 @@ public class GlobalControllerAdvice {
     }
 
     @ModelAttribute("userInitial")
-    public String getUserInitial(Authentication authentication) {
-        String displayName = getUserDisplayName(authentication);
+    public String getUserInitial(Authentication authentication, HttpServletRequest request) {
+        String displayName = getUserDisplayName(authentication, request);
         return vn.bookstore.the4bookstore.util.AvatarUtils.extractInitial(displayName);
     }
 
     @ModelAttribute("userHasCustomAvatar")
-    public boolean getUserHasCustomAvatar(Authentication authentication) {
-        String customAvatar = getCustomAvatar(authentication);
+    public boolean getUserHasCustomAvatar(Authentication authentication, HttpServletRequest request) {
+        String customAvatar = getCustomAvatar(authentication, request);
         return vn.bookstore.the4bookstore.util.AvatarUtils.hasCustomAvatar(customAvatar);
     }
 
+    @ModelAttribute("currentShop")
+    public vn.bookstore.the4bookstore.entity.Shop getCurrentShop(Authentication authentication, HttpServletRequest request) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return null;
+        }
+        KhachHang kh = getCachedKhachHang(authentication, request);
+        if (kh != null && kh.getTaiKhoan() != null && shopService != null) {
+            Optional<vn.bookstore.the4bookstore.entity.Shop> userShop = shopService.findByTaiKhoan(kh.getTaiKhoan());
+            if (userShop.isPresent()) {
+                return userShop.get();
+            }
+        }
+        return null;
+    }
+
     @ModelAttribute("userDisplayName")
-    public String getUserDisplayName(Authentication authentication) {
+    public String getUserDisplayName(Authentication authentication, HttpServletRequest request) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return "User";
         }
 
         Object principal = authentication.getPrincipal();
+        KhachHang cachedKh = getCachedKhachHang(authentication, request);
+
+        if (cachedKh != null && cachedKh.getHoTen() != null && !cachedKh.getHoTen().isBlank() && !cachedKh.getHoTen().matches("\\d+")) {
+            return cachedKh.getHoTen();
+        }
 
         if (principal instanceof CustomOAuth2User oAuth2User) {
-            if (oAuth2User.getTaiKhoan() != null) {
-                Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(oAuth2User.getTaiKhoan());
-                if (khOpt.isPresent() && khOpt.get().getHoTen() != null && !khOpt.get().getHoTen().isBlank() && !khOpt.get().getHoTen().matches("\\d+")) {
-                    return khOpt.get().getHoTen();
-                }
-            }
             String name = oAuth2User.getName();
             if (name != null && !name.isBlank() && !name.matches("\\d+")) {
                 return name;
@@ -251,12 +281,6 @@ public class GlobalControllerAdvice {
         }
 
         if (principal instanceof CustomOidcUser oidcUser) {
-            if (oidcUser.getTaiKhoan() != null) {
-                Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(oidcUser.getTaiKhoan());
-                if (khOpt.isPresent() && khOpt.get().getHoTen() != null && !khOpt.get().getHoTen().isBlank() && !khOpt.get().getHoTen().matches("\\d+")) {
-                    return khOpt.get().getHoTen();
-                }
-            }
             String name = oidcUser.getName();
             if (name != null && !name.isBlank() && !name.matches("\\d+")) {
                 return name;
@@ -278,22 +302,11 @@ public class GlobalControllerAdvice {
             }
             Object emailObj = oauth2User.getAttribute("email");
             if (emailObj != null) {
-                Optional<TaiKhoan> tkOpt = taiKhoanRepository.findByEmail(emailObj.toString());
-                if (tkOpt.isPresent()) {
-                    Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(tkOpt.get());
-                    if (khOpt.isPresent() && khOpt.get().getHoTen() != null && !khOpt.get().getHoTen().isBlank() && !khOpt.get().getHoTen().matches("\\d+")) {
-                        return khOpt.get().getHoTen();
-                    }
-                }
                 return emailObj.toString().split("@")[0];
             }
         }
 
         if (principal instanceof CustomUserDetails userDetails) {
-            Optional<KhachHang> khOpt = khachHangRepository.findByTaiKhoan(userDetails.getTaiKhoan());
-            if (khOpt.isPresent() && khOpt.get().getHoTen() != null && !khOpt.get().getHoTen().isBlank() && !khOpt.get().getHoTen().matches("\\d+")) {
-                return khOpt.get().getHoTen();
-            }
             if (userDetails.getUsername() != null && !userDetails.getUsername().matches("\\d+")) {
                 return userDetails.getUsername();
             }

@@ -9,9 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import vn.bookstore.the4bookstore.entity.KhachHang;
 import vn.bookstore.the4bookstore.entity.SanPham;
-import vn.bookstore.the4bookstore.entity.TaiKhoan;
-import vn.bookstore.the4bookstore.repository.KhachHangRepository;
-import vn.bookstore.the4bookstore.repository.TaiKhoanRepository;
+import vn.bookstore.the4bookstore.service.CurrentUserService;
 import vn.bookstore.the4bookstore.service.UserInteractionService;
 
 import java.util.Arrays;
@@ -23,22 +21,12 @@ import java.util.Map;
 public class UserInteractionController {
 
     private final UserInteractionService interactionService;
-    private final KhachHangRepository khachHangRepository;
-    private final TaiKhoanRepository taiKhoanRepository;
-
-    private KhachHang getCurrentKhachHang(Authentication auth) {
-        if (auth == null || !auth.isAuthenticated()) return null;
-        TaiKhoan tk = taiKhoanRepository.findByEmail(auth.getName())
-                .or(() -> taiKhoanRepository.findByTenDangNhap(auth.getName()))
-                .orElse(null);
-        if (tk == null) return null;
-        return khachHangRepository.findByTaiKhoan(tk).orElse(null);
-    }
+    private final CurrentUserService currentUserService;
 
     // --- DANH SÁCH YÊU THÍCH (WISHLIST) ---
     @GetMapping("/profile/favorites")
     public String wishlistPage(Authentication auth, Model model) {
-        KhachHang kh = getCurrentKhachHang(auth);
+        KhachHang kh = currentUserService.getCurrentKhachHang(auth);
         if (kh == null) return "redirect:/login";
 
         List<SanPham> favorites = interactionService.getFavorites(kh);
@@ -50,7 +38,7 @@ public class UserInteractionController {
     @PostMapping("/api/favorites/toggle/{maSP}")
     @ResponseBody
     public ResponseEntity<?> toggleFavorite(Authentication auth, @PathVariable Integer maSP) {
-        KhachHang kh = getCurrentKhachHang(auth);
+        KhachHang kh = currentUserService.getCurrentKhachHang(auth);
         if (kh == null) {
             return ResponseEntity.status(401).body(Map.of("success", false, "message", "Vui lòng đăng nhập để yêu thích sản phẩm"));
         }
@@ -61,7 +49,7 @@ public class UserInteractionController {
     // --- SẢN PHẨM ĐÃ XEM ---
     @GetMapping("/profile/recently-viewed")
     public String recentlyViewedPage(Authentication auth, Model model) {
-        KhachHang kh = getCurrentKhachHang(auth);
+        KhachHang kh = currentUserService.getCurrentKhachHang(auth);
         if (kh == null) return "redirect:/login";
 
         List<SanPham> recentlyViewed = interactionService.getRecentlyViewed(kh);
@@ -79,7 +67,7 @@ public class UserInteractionController {
                                @RequestParam String noiDung,
                                @RequestParam(required = false) String mediaUrl,
                                RedirectAttributes redirectAttributes) {
-        KhachHang kh = getCurrentKhachHang(auth);
+        KhachHang kh = currentUserService.getCurrentKhachHang(auth);
         if (kh == null) return "redirect:/login";
 
         try {
@@ -89,6 +77,6 @@ public class UserInteractionController {
         } catch (Exception ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
-        return "redirect:/san-pham/" + maSP;
+        return "redirect:/san-pham/" + maSP + "#reviews-section";
     }
 }

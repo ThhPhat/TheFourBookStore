@@ -36,11 +36,12 @@
                     <div class="relative group w-full max-w-xs">
                         <div class="absolute -inset-3 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-3xl blur-xl opacity-70"></div>
                         <div class="relative aspect-[3/4] w-full rounded-3xl overflow-hidden shadow-2xl bg-surface-container border border-surface-container-high">
-                            <img th:if="${sanPham.hinhAnh != null}"
+                            <img th:if="${sanPham.hinhAnh != null and !sanPham.hinhAnh.isEmpty()}"
                                  th:src="${sanPham.hinhAnh}" th:alt="${sanPham.tenSP}"
-                                 class="w-full h-full object-cover"/>
-                            <img th:unless="${sanPham.hinhAnh != null}"
-                                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJxhxEUoGYZXYaOldMaT7d3dcCRrYvCD-3AWG8q4nOBMKeBIhtPi1dKb9NiDZHTXWMxMULBn3rsm5dU8_IVOjwK8Bnkg8xf-IGsBbsQoLtc5D6EWqcU1KfQ1LzI9jMW8JHZBBy9sHF_7t1onS8pagaubUOfOqYifnPkQMRgKeMgWgWQ71XMqmHdC9fJzuMiB3aqbLZt8bE5qj4HVtt62KzVUKztkjut685dS6dOCMbTJ_WPnz-9N7y"
+                                 class="w-full h-full object-cover"
+                                 onerror="this.src='/images/default-book.png'"/>
+                            <img th:unless="${sanPham.hinhAnh != null and !sanPham.hinhAnh.isEmpty()}"
+                                 src="/images/default-book.png"
                                  th:alt="${sanPham.tenSP}"
                                  class="w-full h-full object-cover"/>
                         </div>
@@ -75,7 +76,7 @@
                         <div class="flex items-center gap-1 text-amber-500 font-bold">
                             <span class="material-symbols-outlined text-[18px] fill-current">star</span>
                             <span th:text="${avgRating != null ? #numbers.formatDecimal(avgRating, 1, 'POINT', 1, 'COMMA') : '5.0'}">5.0</span>
-                            <span class="text-on-surface-variant font-normal" th:text="'(' + ${reviewCount} + ' đánh giá)'">(0 đánh giá)</span>
+                            <a href="#reviews-section" class="text-on-surface-variant font-normal hover:text-primary hover:underline cursor-pointer" th:text="'(' + ${reviewCount} + ' đánh giá)'">(0 đánh giá)</a>
                         </div>
                         <span class="text-outline-variant">•</span>
                         <div class="flex items-center gap-1 font-semibold text-on-surface">
@@ -84,20 +85,17 @@
                         </div>
                     </div>
 
-                    <!-- Authors & Publisher Badges / Links -->
-                    <div class="flex flex-wrap items-center gap-space-md text-sm text-on-surface-variant">
-                        <!-- Author -->
+                    <!-- Author (Chỉ hiển thị với Sản phẩm là Sách) -->
+                    <div th:if="${#strings.equalsIgnoreCase(sanPham.loaiSP, 'Sach') or sanPham.loaiSP == null}" class="flex flex-wrap items-center gap-space-md text-sm text-on-surface-variant">
                         <div th:if="${sanPham.danhSachTacGia != null and !sanPham.danhSachTacGia.isEmpty()}" class="flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-[18px] text-primary">person_edit</span>
                             <span>Tác giả: </span>
                             <span class="font-bold text-primary" th:text="${sanPham.danhSachTacGia}">Tác giả</span>
                         </div>
-
-                        <!-- Publisher -->
-                        <div th:if="${sanPham.nhaXuatBan != null}" class="flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-[18px] text-secondary">apartment</span>
-                            <span>NXB: </span>
-                            <a th:href="@{/san-pham/sach(nxb=${sanPham.nhaXuatBan.maNXB})}" class="font-semibold text-on-surface hover:text-primary hover:underline" th:text="${sanPham.nhaXuatBan.tenNXB}">NXB</a>
+                        <div th:unless="${sanPham.danhSachTacGia != null and !sanPham.danhSachTacGia.isEmpty()}" class="flex items-center gap-1.5 text-on-surface-variant/70">
+                            <span class="material-symbols-outlined text-[18px]">person</span>
+                            <span>Tác giả: </span>
+                            <span class="italic font-medium">Đang cập nhật</span>
                         </div>
                     </div>
 
@@ -155,6 +153,12 @@
                             <span id="textWishlist" th:text="${isFavorite ? 'Đã thích' : 'Yêu thích'}">Yêu thích</span>
                         </button>
 
+                        <!-- Review Action Button (Jump to Review form / section) -->
+                        <a th:if="${canReview}" href="#reviewForm" class="px-space-lg py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">rate_review</span>
+                            <span>Viết Đánh Giá</span>
+                        </a>
+
                         <a th:href="@{/san-pham}" class="px-space-xl py-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold text-sm transition-colors flex items-center justify-center gap-space-xs">
                             <span class="material-symbols-outlined text-[18px]">arrow_back</span>
                             <span>Quay Lại</span>
@@ -165,16 +169,13 @@
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-space-sm mt-space-xs">
                         <div class="bg-surface-container-lowest rounded-xl p-space-md border border-surface-container/60">
                             <p class="text-xs text-on-surface-variant mb-0.5">Danh mục</p>
-                            <p class="text-sm font-semibold text-on-surface" th:text="${sanPham.loaiSP == 'Sach' ? 'Sách' : (sanPham.loaiSP == 'VanPhongPham' ? 'Văn Phòng Phẩm' : (sanPham.loaiSP == 'QuaTang' ? 'Quà Tặng & Trang Trí' : sanPham.loaiSP))}">Sách</p>
+                            <p class="text-sm font-semibold text-on-surface" th:text="${#strings.equalsIgnoreCase(sanPham.loaiSP, 'Sach') ? 'Sách' : (sanPham.loaiSP == 'VanPhongPham' ? 'Văn Phòng Phẩm' : (sanPham.loaiSP == 'QuaTang' ? 'Quà Tặng & Trang Trí' : sanPham.loaiSP))}">Sách</p>
                         </div>
                         <div class="bg-surface-container-lowest rounded-xl p-space-md border border-surface-container/60" th:if="${sanPham.danhMuc != null}">
                             <p class="text-xs text-on-surface-variant mb-0.5">Loại sản phẩm</p>
                             <p class="text-sm font-semibold text-on-surface" th:text="${sanPham.danhMuc.tenDanhMuc}">Tiểu thuyết</p>
                         </div>
-                        <div class="bg-surface-container-lowest rounded-xl p-space-md border border-surface-container/60" th:if="${sanPham.nhaXuatBan != null}">
-                            <p class="text-xs text-on-surface-variant mb-0.5">Nhà Xuất Bản</p>
-                            <p class="text-sm font-semibold text-on-surface truncate" th:text="${sanPham.nhaXuatBan.tenNXB}">NXB</p>
-                        </div>
+
                         <div class="bg-surface-container-lowest rounded-xl p-space-md border border-surface-container/60" th:if="${sanPham.shop != null}">
                             <p class="text-xs text-on-surface-variant mb-0.5">Cửa hàng bán</p>
                             <a th:href="@{'/shop/' + ${sanPham.shop.slug}}" class="text-sm font-bold text-primary hover:underline truncate block" th:text="${sanPham.shop.tenShop}">Tên Shop</a>
@@ -201,7 +202,7 @@
                                 <span th:if="${sanPham.shop.maShop == 1}" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">Gian Hàng Chính Hãng</span>
                                 <span th:unless="${sanPham.shop.maShop == 1}" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-700">Gian Hàng Đối Tác</span>
                             </div>
-                            <p class="text-xs text-on-surface-variant mt-1 line-clamp-1" th:text="${sanPham.shop.moTa != null ? sanPham.shop.moTa : 'Chuyên cung cấp ấn phẩm sách chính hãng chọn lọc.'}">Mô tả shop</p>
+                            <p class="text-xs text-on-surface-variant mt-1 line-clamp-1" th:text="${sanPham.shop.moTa != null ? sanPham.shop.moTa : 'Chuyên cung cấp sản phẩm chính hãng chọn lọc.'}">Mô tả shop</p>
                             <div class="flex items-center gap-4 text-xs text-on-surface-variant mt-1.5 flex-wrap">
                                 <span class="flex items-center gap-1" th:if="${sanPham.shop.soDienThoai != null}">
                                     <span class="material-symbols-outlined text-[14px] text-primary">call</span>
@@ -269,7 +270,7 @@
                         </div>
                         <p class="text-xs text-on-surface-variant mb-4">
                             Chia sẻ cảm nhận sau khi đọc tác phẩm này để nhận được sự đồng cảm và gợi ý cho những độc giả khác nhé! 
-                            <strong class="text-primary">(Yêu cầu tối thiểu 50 ký tự)</strong>
+                            <strong class="text-primary">(Yêu cầu tối thiểu 10 ký tự)</strong>
                         </p>
 
                         <form th:action="@{/api/danh-gia/submit}" method="post" id="reviewForm" class="space-y-4">
@@ -313,10 +314,10 @@
                             <div>
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-xs font-semibold text-on-surface">Nội dung đánh giá chi tiết *</label>
-                                    <span class="text-xs font-mono" id="charCountLabel">0 / 50 ký tự tối thiểu</span>
+                                    <span class="text-xs font-mono" id="charCountLabel">0 / 10 ký tự tối thiểu</span>
                                 </div>
-                                <textarea name="noiDung" id="reviewContent" rows="4" required
-                                          placeholder="Hãy mô tả chất lượng giấy in, nội dung cuốn sách, cảm xúc khi đọc tác phẩm này... (tối thiểu 50 ký tự)"
+                                <textarea name="noiDung" id="reviewContent" rows="4" required minlength="10"
+                                          placeholder="Hãy mô tả chất lượng sản phẩm, nội dung, cảm xúc khi trải nghiệm tác phẩm này... (tối thiểu 10 ký tự)"
                                           class="w-full bg-surface-container-lowest p-3 rounded-2xl text-xs border border-surface-container focus:ring-1 focus:ring-primary focus:outline-none resize-none"></textarea>
                             </div>
 
@@ -337,9 +338,15 @@
                     </div>
 
                     <!-- Notice for users who haven't purchased -->
-                    <div th:if="${!canReview and isLoggedIn}" class="my-space-md p-4 rounded-2xl bg-surface-container-low border border-surface-container text-xs text-on-surface-variant flex items-center gap-2">
+                    <div th:if="${!canReview and isLoggedIn and !hasPurchased}" class="my-space-md p-4 rounded-2xl bg-surface-container-low border border-surface-container text-xs text-on-surface-variant flex items-center gap-2">
                         <span class="material-symbols-outlined text-[20px] text-secondary">verified</span>
                         <span>Chức năng đánh giá chỉ dành cho độc giả đã đặt mua và nhận sản phẩm này thành công trên hệ thống The4BookStore.</span>
+                    </div>
+
+                    <!-- Notice for users who already reviewed all eligible orders -->
+                    <div th:if="${!canReview and isLoggedIn and hasPurchased}" class="my-space-md p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-emerald-600">check_circle</span>
+                        <span>Bạn đã hoàn thành đánh giá cho tất cả các đơn hàng mua sản phẩm này. Cảm ơn bạn đã chia sẻ cảm nhận!</span>
                     </div>
 
                     <div th:if="${!isLoggedIn}" class="my-space-md p-4 rounded-2xl bg-surface-container-low border border-surface-container text-xs text-on-surface-variant flex items-center justify-between">
@@ -385,13 +392,18 @@
                             <!-- Media Attachments -->
                             <div th:if="${rv.mediaList != null and !rv.mediaList.isEmpty()}" class="flex items-center gap-2 pl-10 pt-2 flex-wrap">
                                 <div th:each="m : ${rv.mediaList}">
-                                    <a th:if="${m.loaiMedia == 'IMAGE'}" th:href="${m.url}" class="block w-16 h-16 rounded-xl overflow-hidden border border-surface-container shadow-xs hover:scale-105 transition-transform">
-                                        <img th:src="${m.url}" class="w-full h-full object-cover" alt="Ảnh đánh giá"/>
+                                    <a th:if="${m.loaiMedia == 'IMAGE'}" th:href="${m.url}" target="_blank" class="block w-16 h-16 rounded-xl overflow-hidden border border-surface-container shadow-xs hover:scale-105 transition-transform">
+                                        <img th:src="${m.url}" class="w-full h-full object-cover" alt="Ảnh đánh giá" onerror="this.src='/images/default-book.png'"/>
                                     </a>
-                                    <a th:if="${m.loaiMedia == 'VIDEO'}" th:href="${m.url}" class="flex items-center justify-center w-16 h-16 rounded-xl bg-surface-container border border-surface-container text-primary hover:scale-105 transition-transform">
+                                    <a th:if="${m.loaiMedia == 'VIDEO'}" th:href="${m.url}" target="_blank" class="flex items-center justify-center w-16 h-16 rounded-xl bg-surface-container border border-surface-container text-primary hover:scale-105 transition-transform">
                                         <span class="material-symbols-outlined text-[24px]">smart_display</span>
                                     </a>
                                 </div>
+                            </div>
+                            <div th:if="${rv.hinhAnhDanhGia != null and !rv.hinhAnhDanhGia.isEmpty() and (rv.mediaList == null or rv.mediaList.isEmpty())}" class="pl-10 pt-2">
+                                <a th:href="${rv.hinhAnhDanhGia}" target="_blank" class="block w-16 h-16 rounded-xl overflow-hidden border border-surface-container shadow-xs hover:scale-105 transition-transform">
+                                    <img th:src="${rv.hinhAnhDanhGia}" class="w-full h-full object-cover" alt="Ảnh đánh giá" onerror="this.src='/images/default-book.png'"/>
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -406,7 +418,7 @@
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-space-md">
                     <th:block th:each="book : ${relatedBooks}">
-                        <div th:replace="~{fragments/common/book_card :: book_card(${book})}"></div>
+                        <div th:replace="~{fragments/common/product_card :: product_card(${book})}"></div>
                     </th:block>
                 </div>
             </div>
@@ -520,8 +532,8 @@
 
             reviewInput.addEventListener('input', function() {
                 const len = this.value.trim().length;
-                charCountLabel.textContent = len + ' / 50 ký tự tối thiểu';
-                if (len >= 50) {
+                charCountLabel.textContent = len + ' / 10 ký tự tối thiểu';
+                if (len >= 10) {
                     charCountLabel.className = 'text-xs font-mono font-bold text-emerald-600';
                     submitBtn.disabled = false;
                 } else {

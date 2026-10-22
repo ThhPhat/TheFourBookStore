@@ -19,20 +19,12 @@ public class SanPham {
     @Column(nullable = false, length = 200)
     private String tenSP;
     
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "maDanhMuc", nullable = false)
     private DanhMuc danhMuc;
     
-    @ManyToOne
-    @JoinColumn(name = "maNXB")
-    private NhaXuatBan nhaXuatBan;
-    
-    @ManyToOne
-    @JoinColumn(name = "maNCC")
-    private NhaCungCap nhaCungCap;
-    
     @Column(nullable = false, length = 30)
-    private String loaiSP;
+    private String loaiSP = "SACH";
     @Column(unique = true, length = 20)
     private String ISBN;
     @Column(nullable = false)
@@ -64,20 +56,45 @@ public class SanPham {
     @OneToMany(mappedBy = "sanPham", fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @org.hibernate.annotations.BatchSize(size = 50)
     private List<SanPhamTacGia> sanPhamTacGias = new java.util.ArrayList<>();
 
     public String getDanhSachTacGia() {
-        if (sanPhamTacGias == null || sanPhamTacGias.isEmpty()) {
+        try {
+            if (sanPhamTacGias == null || sanPhamTacGias.isEmpty()) {
+                return "";
+            }
+            return sanPhamTacGias.stream()
+                    .filter(sptg -> sptg != null && sptg.getTacGia() != null)
+                    .map(sptg -> sptg.getTacGia().getTenTacGia())
+                    .filter(name -> name != null && !name.isBlank())
+                    .collect(java.util.stream.Collectors.joining(", "));
+        } catch (Exception e) {
             return "";
         }
-        return sanPhamTacGias.stream()
-                .filter(sptg -> sptg.getTacGia() != null)
-                .map(sptg -> sptg.getTacGia().getTenTacGia())
-                .collect(java.util.stream.Collectors.joining(", "));
     }
 
-    public String getTenNhaXuatBan() {
-        return nhaXuatBan != null ? nhaXuatBan.getTenNXB() : "";
+
+    public String getTenShop() {
+        try {
+            if (shop != null && org.hibernate.Hibernate.isInitialized(shop)) {
+                return shop.getTenShop() != null ? shop.getTenShop() : "";
+            }
+            return "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    public String getShopSlug() {
+        try {
+            if (shop != null && org.hibernate.Hibernate.isInitialized(shop)) {
+                return shop.getSlug() != null ? shop.getSlug() : "";
+            }
+            return "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     public String getHinhAnh() {

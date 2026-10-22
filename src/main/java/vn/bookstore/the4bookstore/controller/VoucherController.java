@@ -1,6 +1,7 @@
 package vn.bookstore.the4bookstore.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -82,7 +83,7 @@ public class VoucherController {
     }
 
     // ==================== API: Lưu mã voucher vào ví cá nhân ====================
-    @PostMapping("/api/voucher/luu")
+    @PostMapping(value = "/api/voucher/luu", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public Map<String, Object> saveVoucher(@RequestParam("maKM") Integer maKM,
                                            Authentication authentication) {
@@ -134,7 +135,7 @@ public class VoucherController {
     }
 
     // ==================== API: Lấy Ví Voucher (dùng cho cart modal) ====================
-    @GetMapping("/api/voucher/vi")
+    @GetMapping(value = "/api/voucher/vi", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public Map<String, Object> getMyWallet(@RequestParam(value = "subtotal", defaultValue = "0") Integer subtotal,
                                            Authentication authentication) {
@@ -161,6 +162,8 @@ public class VoucherController {
             item.put("maCode", km.getMaCode());
             item.put("tenKM", km.getTenKM());
             item.put("loaiGiam", km.getLoaiGiam());
+            item.put("loaiKhuyenMai", km.getLoaiKhuyenMai());
+            item.put("voucherType", km.getVoucherType());
             item.put("giaTriGiam", km.getGiaTriGiam());
             item.put("giamToiDa", km.getGiamToiDa());
             item.put("donToiThieu", km.getDonToiThieu());
@@ -176,7 +179,7 @@ public class VoucherController {
             if (!expired && km.getDonToiThieu() != null && km.getDonToiThieu() > 0 && subtotal < km.getDonToiThieu()) {
                 eligible = false;
                 int thieu = km.getDonToiThieu() - subtotal;
-                reason = "Mua thêm " + String.format("%,d", thieu) + "đ để sử dụng";
+                reason = "Mua thêm " + String.format(Locale.US, "%,d", thieu) + "đ để sử dụng";
             }
             item.put("eligible", eligible);
             item.put("reason", reason);
@@ -189,7 +192,7 @@ public class VoucherController {
                     if (km.getGiamToiDa() != null && discount > km.getGiamToiDa()) discount = km.getGiamToiDa();
                 } else if ("TienCoDinh".equalsIgnoreCase(km.getLoaiGiam())) {
                     discount = Math.min(subtotal, km.getGiaTriGiam());
-                } else if ("Freeship".equalsIgnoreCase(km.getLoaiGiam())) {
+                } else if ("Freeship".equalsIgnoreCase(km.getLoaiGiam()) || km.isShippingDiscount()) {
                     discount = km.getGiaTriGiam() != null ? km.getGiaTriGiam() : 30000;
                 }
                 item.put("discountPreview", discount);
@@ -205,7 +208,7 @@ public class VoucherController {
     }
 
     // ==================== API: Lấy danh sách voucher công khai (cho homepage) ====================
-    @GetMapping("/api/voucher/public")
+    @GetMapping(value = "/api/voucher/public", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public Map<String, Object> getPublicVouchers(Authentication authentication) {
         Map<String, Object> result = new HashMap<>();
@@ -230,6 +233,8 @@ public class VoucherController {
             item.put("tenKM", km.getTenKM());
             item.put("maCode", km.getMaCode());
             item.put("loaiGiam", km.getLoaiGiam());
+            item.put("loaiKhuyenMai", km.getLoaiKhuyenMai());
+            item.put("voucherType", km.getVoucherType());
             item.put("giaTriGiam", km.getGiaTriGiam());
             item.put("giamToiDa", km.getGiamToiDa());
             item.put("donToiThieu", km.getDonToiThieu());

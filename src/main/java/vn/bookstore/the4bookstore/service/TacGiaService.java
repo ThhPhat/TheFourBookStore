@@ -20,6 +20,7 @@ public class TacGiaService {
     private final SanPhamRepository sanPhamRepository;
     private final SanPhamTacGiaRepository sanPhamTacGiaRepository;
 
+    @org.springframework.cache.annotation.Cacheable("authors")
     public List<TacGia> getAll() {
         return tacGiaRepository.findAll();
     }
@@ -29,11 +30,13 @@ public class TacGiaService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "authors", allEntries = true)
     public TacGia save(TacGia tacGia) {
         return tacGiaRepository.save(tacGia);
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "authors", allEntries = true)
     public void delete(Integer id) {
         long bookCount = sanPhamTacGiaRepository.countByTacGia_MaTacGia(id);
         if (bookCount > 0) {

@@ -25,8 +25,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @Controller
 @RequestMapping({"/admin/vouchers", "/admin/promotions"})
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'QUANLY')")
 public class AdminPromotionController {
 
     private final KhuyenMaiService khuyenMaiService;
@@ -229,6 +232,11 @@ public class AdminPromotionController {
         }
         if (khuyenMai.getDoiTuongKhachHang() == null) {
             khuyenMai.setDoiTuongKhachHang("ALL");
+        if ("Freeship".equalsIgnoreCase(khuyenMai.getLoaiGiam())) {
+            khuyenMai.setLoaiKhuyenMai("MIEN_PHI_VAN_CHUYEN");
+        } else if (khuyenMai.getLoaiKhuyenMai() == null || khuyenMai.getLoaiKhuyenMai().isBlank()) {
+            khuyenMai.setLoaiKhuyenMai("GIAM_GIA_SAN_PHAM");
+        }
         }
 
         try {

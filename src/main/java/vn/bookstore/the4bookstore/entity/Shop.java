@@ -8,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "shop")
+@org.hibernate.annotations.BatchSize(size = 50)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,6 +21,8 @@ public class Shop {
 
     @OneToOne
     @JoinColumn(name = "ma_tai_khoan", nullable = false, unique = true)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private TaiKhoan taiKhoan;
 
     @Column(name = "ten_shop", nullable = false, unique = true, length = 150)
@@ -50,7 +53,7 @@ public class Shop {
     private BigDecimal chietKhauPhanTram; // Tỷ lệ chiết khấu sàn riêng cho shop, nếu null lấy mặc định
 
     @Column(name = "trang_thai", nullable = false, length = 30)
-    private String trangThai = "ChoDuyet"; // ChoDuyet, HoatDong, TamKhoa, BiKhoa
+    private String trangThai = "ChoDuyet"; // ChoDuyet, HoatDong, TuChoi, BiKhoa, DaXoa
 
     @Column(name = "ngay_tao", nullable = false)
     private LocalDateTime ngayTao = LocalDateTime.now();

@@ -7,6 +7,8 @@
     <header th:replace="~{fragments/common/navbar :: common_navbar('vendor')}"></header>
 
     <main class="w-full pt-28 pb-16 flex-1 max-w-4xl mx-auto px-4">
+        <nav th:replace="~{fragments/vendor/vendor_nav :: vendor_navbar('profile')}"></nav>
+
         <div class="bg-surface-container-lowest p-8 rounded-3xl border border-surface-container shadow-sm">
             <div class="flex items-center justify-between mb-8 pb-4 border-b border-surface-container">
                 <div>
