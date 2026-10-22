@@ -7,6 +7,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import vn.bookstore.the4bookstore.entity.DanhMuc;
 import vn.bookstore.the4bookstore.entity.KhachHang;
@@ -68,6 +69,12 @@ public class HomeController {
         KhachHang kh = khachHangRepository.findByTaiKhoan(tk).orElse(null);
         if (request != null && kh != null) request.setAttribute("CURRENT_KHACH_HANG_CACHE", kh);
         return kh;
+    }
+
+    @RequestMapping(value = "/", method = org.springframework.web.bind.annotation.RequestMethod.HEAD)
+    @org.springframework.web.bind.annotation.ResponseBody
+    public org.springframework.http.ResponseEntity<Void> healthCheck() {
+        return org.springframework.http.ResponseEntity.ok().build();
     }
 
     @GetMapping("/")

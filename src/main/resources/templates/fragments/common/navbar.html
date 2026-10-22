@@ -172,7 +172,7 @@
                         <span class="material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
                         <input name="q"
                                class="w-full bg-transparent border-0 text-on-surface placeholder:text-on-surface-variant focus:outline-none font-body-md text-xs md:text-sm py-2"
-                               placeholder="Tìm kiếm tên sách, tác giả, gian hàng..."
+                               placeholder="Tìm kiếm sản phẩm, tác giả, gian hàng..."
                                type="text"/>
                         <button type="submit" class="hidden">Tìm</button>
                     </form>
@@ -184,10 +184,6 @@
                     <a sec:authorize="hasAnyRole('ADMIN', 'QUANLY')" th:href="@{/admin/dashboard}" class="inline-flex items-center gap-1 px-space-sm py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-semibold hover:bg-primary-container transition-colors shadow-sm">
                         <span class="material-symbols-outlined text-[18px]">admin_panel_settings</span>
                         <span>Quản Trị</span>
-                    </a>
-                    <a sec:authorize="hasRole('NHANVIENKHO')" th:href="@{/admin/kho}" class="inline-flex items-center gap-1 px-space-sm py-2 rounded-xl bg-primary text-on-primary font-label-md text-xs font-semibold hover:bg-primary-container transition-colors shadow-sm">
-                        <span class="material-symbols-outlined text-[18px]">warehouse</span>
-                        <span>Quản Lý Kho</span>
                     </a>
 
                     <!-- Client Notification Bell (Visible for Logged-In Users) -->
@@ -274,15 +270,15 @@
                                     </a>
                                     <a th:href="@{/profile/addresses}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-primary">location_on</span>
-                                        <span>Sổ địa chỉ nhận hàng</span>
+                                        <span>Xem địa chỉ</span>
                                     </a>
                                     <a th:href="@{/profile/favorites}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-rose-500">favorite</span>
-                                        <span>Sách yêu thích</span>
+                                        <span>Sản phẩm yêu thích</span>
                                     </a>
                                     <a th:href="@{/profile/recently-viewed}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-amber-500">history</span>
-                                        <span>Sách đã xem gần đây</span>
+                                        <span>Sản phẩm đã xem gần đây</span>
                                     </a>
                                     <a th:href="@{/profile#orders-section}" class="flex items-center gap-2.5 px-4 py-2 font-label-md text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                                         <span class="material-symbols-outlined text-[18px] text-on-surface-variant">receipt_long</span>

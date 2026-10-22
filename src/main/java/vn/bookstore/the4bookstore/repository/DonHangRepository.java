@@ -81,5 +81,19 @@ public interface DonHangRepository extends JpaRepository<DonHang, Integer> {
     @org.springframework.data.jpa.repository.Modifying
     @Query("UPDATE DonHang d SET d.shop = null WHERE d.shop.maShop = :maShop")
     void detachShopFromOrders(@Param("maShop") Integer maShop);
+
+    // ====================================================================
+    // ĐỀ TÀI DBMS330284: GỌI TRỰC TIẾP STORED PROCEDURES
+    // ====================================================================
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(nativeQuery = true, value = "CALL sp_HuyDonHang(:madh, :lyDo)")
+    void executeSpHuyDonHang(@Param("madh") Integer madh, @Param("lyDo") String lyDo);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(nativeQuery = true, value = "CALL sp_ShopXacNhanDonHang(:madh, :maShop, :maVanDon)")
+    void executeSpShopXacNhanDonHang(@Param("madh") Integer madh, @Param("maShop") Integer maShop, @Param("maVanDon") String maVanDon);
 }
 
