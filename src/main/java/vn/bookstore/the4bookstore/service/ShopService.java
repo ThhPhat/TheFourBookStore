@@ -164,11 +164,8 @@ public class ShopService {
 
     @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public void tuChoiShop(Integer maShop) {
-        Shop shop = shopRepository.findById(maShop)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
-        shop.setTrangThai("TuChoi");
-        shop.setNgayCapNhat(LocalDateTime.now());
-        shopRepository.save(shop);
+        // Từ chối đơn đăng ký gian hàng: xóa luôn bản ghi gian hàng để không tồn đọng trong danh sách quản lý
+        xoaShop(maShop);
     }
 
     public void khoaShop(Integer maShop) {
@@ -239,6 +236,9 @@ public class ShopService {
     }
 
     public void updateChietKhau(Integer maShop, BigDecimal chietKhau) {
+        if (chietKhau == null || chietKhau.compareTo(BigDecimal.ZERO) < 0 || chietKhau.compareTo(new BigDecimal("50.0")) > 0) {
+            throw new IllegalArgumentException("Tỷ lệ chiết khấu phí sàn cho từng shop phải nằm trong khoảng từ 0% đến 50%!");
+        }
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop"));
         shop.setChietKhauPhanTram(chietKhau);

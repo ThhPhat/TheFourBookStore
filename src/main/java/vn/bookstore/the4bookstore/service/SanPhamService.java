@@ -109,39 +109,44 @@ public class SanPhamService {
 
     @Cacheable(value = "categories", key = "#loaiSP")
     public List<DanhMuc> getCategoriesByLoaiSP(String loaiSP) {
-        List<DanhMuc> allActive = danhMucRepository.findAll().stream()
-                .filter(dm -> Boolean.TRUE.equals(dm.getTrangThai()))
-                .toList();
-
-        List<DanhMuc> linked = sanPhamRepository.findDistinctDanhMucByLoaiSP(loaiSP);
-
-        if ("Sach".equalsIgnoreCase(loaiSP)) {
-            return allActive.stream()
-                    .filter(dm -> {
-                        String name = dm.getTenDanhMuc().toLowerCase();
-                        boolean isVpp = name.contains("bút") || name.contains("sổ") || name.contains("dụng cụ") || name.contains("văn phòng phẩm");
-                        boolean isQuaTang = name.contains("túi") || name.contains("book nook") || name.contains("boardgame") || name.contains("quà tặng") || name.contains("nến");
-                        return (!isVpp && !isQuaTang) || linked.stream().anyMatch(d -> d.getMaDanhMuc().equals(dm.getMaDanhMuc()));
-                    })
-                    .toList();
-        } else if ("VanPhongPham".equalsIgnoreCase(loaiSP)) {
-            return allActive.stream()
-                    .filter(dm -> {
-                        String name = dm.getTenDanhMuc().toLowerCase();
-                        boolean isVpp = name.contains("bút") || name.contains("sổ") || name.contains("dụng cụ") || name.contains("văn phòng phẩm") || name.contains("vpp");
-                        return isVpp || linked.stream().anyMatch(d -> d.getMaDanhMuc().equals(dm.getMaDanhMuc()));
-                    })
-                    .toList();
-        } else if ("QuaTang".equalsIgnoreCase(loaiSP)) {
-            return allActive.stream()
-                    .filter(dm -> {
-                        String name = dm.getTenDanhMuc().toLowerCase();
-                        boolean isQuaTang = name.contains("túi") || name.contains("book nook") || name.contains("boardgame") || name.contains("quà tặng") || name.contains("nến") || name.contains("decor") || name.contains("trang trí");
-                        return isQuaTang || linked.stream().anyMatch(d -> d.getMaDanhMuc().equals(dm.getMaDanhMuc()));
-                    })
-                    .toList();
+        if (loaiSP == null || loaiSP.isBlank() || "ALL".equalsIgnoreCase(loaiSP)) {
+            List<DanhMuc> allActive = danhMucRepository.findByTrangThaiTrueOrderByMaDanhMucAsc();
+            return allActive.isEmpty() ? danhMucRepository.findAll() : allActive;
         }
-        return allActive;
+
+        // Truy vấn trực tiếp theo trường loaiSP trong bảng DANH_MUC
+        List<DanhMuc> categories = danhMucRepository.findByLoaiSPAndTrangThaiTrue(loaiSP);
+        if (categories != null && !categories.isEmpty()) {
+            return categories;
+        }
+
+        // Fallback an toàn (nếu DB có bản ghi cũ chưa cập nhật loaiSP hoặc bị rỗng)
+        List<DanhMuc> allActive = danhMucRepository.findByTrangThaiTrueOrderByMaDanhMucAsc();
+        return allActive.stream()
+                .filter(dm -> {
+                    String actualLoai = dm.getLoaiSP();
+                    if (actualLoai != null && !actualLoai.isBlank()) {
+                        return actualLoai.equalsIgnoreCase(loaiSP);
+                    }
+                    String name = dm.getTenDanhMuc() != null ? dm.getTenDanhMuc().toLowerCase() : "";
+                    if ("VanPhongPham".equalsIgnoreCase(loaiSP)) {
+                        return name.contains("bút") || name.contains("sổ") || name.contains("dụng cụ")
+                                || name.contains("văn phòng phẩm") || name.contains("vpp");
+                    } else if ("QuaTang".equalsIgnoreCase(loaiSP)) {
+                        return name.contains("túi") || name.contains("book nook") || name.contains("boardgame")
+                                || name.contains("quà tặng") || name.contains("nến") || name.contains("decor")
+                                || name.contains("trang trí") || name.contains("đèn");
+                    } else if ("Sach".equalsIgnoreCase(loaiSP)) {
+                        boolean isVpp = name.contains("bút") || name.contains("sổ") || name.contains("dụng cụ")
+                                || name.contains("văn phòng phẩm") || name.contains("vpp");
+                        boolean isQt = name.contains("túi") || name.contains("book nook") || name.contains("boardgame")
+                                || name.contains("quà tặng") || name.contains("nến") || name.contains("decor")
+                                || name.contains("trang trí") || name.contains("đèn");
+                        return !isVpp && !isQt;
+                    }
+                    return false;
+                })
+                .toList();
     }
 
     // Tìm kiếm + lọc theo nhóm loạiSP (hoặc toàn bộ nếu loaiSP null/rỗng/"ALL")
@@ -262,63 +267,21 @@ public class SanPhamService {
     }
 
     /**
-     * Xóa sản phẩm an toàn:
-     * - Nếu đã có đơn hàng: Soft delete (chuyển sang 'DaXoa' để giữ tính toàn vẹn dữ liệu đơn hàng và lịch sử hóa đơn).
-     * - Nếu chưa có đơn hàng: Hard delete (dọn dẹp sạch giỏ hàng, đánh giá, quan hệ tác giả, yêu thích... và xóa khỏi DB).
+     * Xóa sản phẩm: Sử dụng Soft Delete (trangThai = 'DaXoa') để đảm bảo toàn vẹn dữ liệu
+     * cho toàn bộ các quan hệ (đơn hàng, giỏ hàng, kho hàng, kiểm kê, đánh giá).
+     * Dọn dẹp sản phẩm khỏi các giỏ hàng hiện tại của khách hàng.
      */
     @Transactional
-    @org.springframework.cache.annotation.CacheEvict(value = {"home_featured_books", "home_preview", "guest_top_sold", "book_of_the_month", "categories"}, allEntries = true)
+    @org.springframework.cache.annotation.CacheEvict(value = {"authors", "home_featured_books", "home_preview", "guest_top_sold", "book_of_the_month", "categories", "allActiveCategories", "categoriesByLoaiSP"}, allEntries = true)
     public void deleteProduct(Integer maSP) {
         SanPham sp = sanPhamRepository.findById(maSP)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy sản phẩm với mã: " + maSP));
 
-        // 1. Kiểm tra đơn hàng liên quan
-        long orderCount = chiTietDonHangRepository.countBySanPham_MaSP(maSP);
-        if (orderCount > 0) {
-            // Đã phát sinh đơn hàng: chuyển trạng thái DaXoa để bảo toàn lịch sử hóa đơn
-            sp.setTrangThai("DaXoa");
-            sanPhamRepository.save(sp);
-            try {
-                chiTietGioHangRepository.deleteBySanPham_MaSP(maSP);
-            } catch (Exception ignored) {}
-            return;
-        }
+        sp.setTrangThai("DaXoa");
+        sanPhamRepository.save(sp);
 
-        // 2. Chưa có đơn hàng: Xóa sạch toàn bộ dữ liệu phụ thuộc
         try {
             chiTietGioHangRepository.deleteBySanPham_MaSP(maSP);
         } catch (Exception ignored) {}
-
-        try {
-            sanPhamTacGiaRepository.deleteBySanPhamId(maSP);
-        } catch (Exception ignored) {}
-
-        try {
-            danhGiaRepository.deleteBySanPham_MaSP(maSP);
-        } catch (Exception ignored) {}
-
-        if (entityManager != null) {
-            try {
-                entityManager.createNativeQuery("DELETE FROM san_pham_yeu_thich WHERE masp = :id").setParameter("id", maSP).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM san_pham_da_xem WHERE masp = :id").setParameter("id", maSP).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM kho_hang WHERE masp = :id").setParameter("id", maSP).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM chi_tiet_kiem_ke WHERE masp = :id").setParameter("id", maSP).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM chi_tiet_phieu_nhap WHERE masp = :id").setParameter("id", maSP).executeUpdate();
-            } catch (Exception ignored) {}
-            try {
-                entityManager.createNativeQuery("DELETE FROM chi_tiet_tra_hang WHERE masp = :id").setParameter("id", maSP).executeUpdate();
-            } catch (Exception ignored) {}
-        }
-
-        // 3. Xóa cứng sản phẩm khỏi cơ sở dữ liệu
-        sanPhamRepository.delete(sp);
     }
 }

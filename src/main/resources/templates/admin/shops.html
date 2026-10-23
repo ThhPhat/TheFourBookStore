@@ -49,12 +49,12 @@
                         <div class="relative min-w-[220px]">
                             <select name="searchType" id="searchTypeSelect" onchange="updatePlaceholder()"
                                     class="w-full pl-3 pr-8 py-2.5 rounded-xl border border-surface-container bg-surface-container-low text-xs font-semibold text-on-surface focus:ring-2 focus:ring-primary appearance-none cursor-pointer">
-                                <option value="all" th:selected="${searchType == 'all' or searchType == null}">🔍 Tất cả tiêu chí</option>
-                                <option value="shopName" th:selected="${searchType == 'shopName'}">🏬 Tên gian hàng</option>
-                                <option value="productName" th:selected="${searchType == 'productName'}">📚 Tên sản phẩm gian hàng bán</option>
-                                <option value="owner" th:selected="${searchType == 'owner'}">👤 Chủ gian hàng / Username</option>
-                                <option value="phone" th:selected="${searchType == 'phone'}">📞 Số điện thoại shop</option>
-                                <option value="email" th:selected="${searchType == 'email'}">✉️ Email gian hàng</option>
+                                <option value="all" th:selected="${searchType == 'all' or searchType == null}">Tất cả tiêu chí</option>
+                                <option value="shopName" th:selected="${searchType == 'shopName'}">Tên gian hàng</option>
+                                <option value="productName" th:selected="${searchType == 'productName'}">Tên sản phẩm gian hàng bán</option>
+                                <option value="owner" th:selected="${searchType == 'owner'}">Chủ gian hàng / Username</option>
+                                <option value="phone" th:selected="${searchType == 'phone'}">Số điện thoại shop</option>
+                                <option value="email" th:selected="${searchType == 'email'}">Email gian hàng</option>
                             </select>
                             <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
                         </div>
@@ -128,7 +128,7 @@
                                     </td>
                                     <td class="p-4 font-bold text-primary whitespace-nowrap">
                                         <form sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'QUANLY')" th:action="@{'/admin/shops/' + ${s.maShop} + '/commission'}" method="post" class="inline-flex items-center gap-1">
-                                            <input type="number" step="0.1" name="commissionRate" th:value="${s.chietKhauPhanTram != null ? s.chietKhauPhanTram : 5.0}" class="w-16 px-2 py-1 rounded border text-xs font-bold"/>
+                                            <input type="number" step="0.1" min="0" max="50" name="commissionRate" th:value="${s.chietKhauPhanTram != null ? s.chietKhauPhanTram : 5.0}" class="w-16 px-2 py-1 rounded border text-xs font-bold"/>
                                             <span>%</span>
                                             <button type="submit" class="p-1 rounded bg-surface-container hover:bg-surface-container-high cursor-pointer" title="Cập nhật chiết khấu">
                                                 <span class="material-symbols-outlined text-xs text-primary">save</span>
@@ -169,7 +169,7 @@
                                             </form>
 
                                             <!-- Từ chối shop -->
-                                            <form th:if="${s.trangThai == 'ChoDuyet'}" th:action="@{'/admin/shops/' + ${s.maShop} + '/reject'}" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn TỪ CHỐI đơn đăng ký gian hàng này?');">
+                                            <form th:if="${s.trangThai == 'ChoDuyet'}" th:action="@{'/admin/shops/' + ${s.maShop} + '/reject'}" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn TỪ CHỐI và XÓA đơn đăng ký gian hàng này?');">
                                                 <button type="submit" class="px-3 py-1 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 transition-all flex items-center gap-1 cursor-pointer">
                                                     <span class="material-symbols-outlined text-xs">close</span>
                                                     <span>Từ chối</span>

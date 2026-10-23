@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:replace="~{admin/fragments/admin_fragments :: admin_head('The4BookStore - Quáº£n LÃ½ Sáº£n Pháº©m & Kho HÃ ng')}">
 </head>
@@ -108,26 +108,26 @@
                                 <span class="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-on-surface-variant">search</span>
                                 <input class="w-full bg-surface-container-low pl-9 pr-space-md py-2 rounded-xl font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container-lowest shadow-sm border border-transparent focus:border-primary/30" 
                                        id="catalogSearchInput" 
-                                       placeholder="TÃ¬m theo tÃªn sáº£n pháº©m, mÃ£ ISBN..." 
+                                       placeholder="Tìm theo tên sản phẩm, mã ISBN..." 
                                        type="text"/>
                             </div>
 
-                            <!-- Product Type Filter -->
+                            <!-- Product Type Filter (Danh mục lớn) -->
                             <div class="relative">
                                 <select class="appearance-none bg-surface-container-low text-on-surface font-label-md text-label-md px-space-md py-2 pr-8 rounded-xl focus:outline-none shadow-sm cursor-pointer border border-transparent focus:border-primary/30" id="loaiSPFilter">
-                                    <option value="all">Táº¥t cáº£ phÃ¢n loáº¡i</option>
-                                    <option value="Sach">SÃ¡ch</option>
-                                    <option value="VanPhongPham">VÄƒn phÃ²ng pháº©m</option>
-                                    <option value="QuaTang">QuÃ  táº·ng &amp; Trang trÃ­</option>
+                                    <option value="all">Tất cả danh mục</option>
+                                    <option value="Sach">Sách</option>
+                                    <option value="VanPhongPham">Văn phòng phẩm</option>
+                                    <option value="QuaTang">Quà tặng &amp; Trang trí</option>
                                 </select>
                                 <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-[16px] text-on-surface-variant pointer-events-none">expand_more</span>
                             </div>
 
-                            <!-- Category Dropdown Filter -->
+                            <!-- Category Dropdown Filter (Danh mục con) -->
                             <div class="relative">
                                 <select class="appearance-none bg-surface-container-low text-on-surface font-label-md text-label-md px-space-md py-2 pr-8 rounded-xl focus:outline-none shadow-sm cursor-pointer border border-transparent focus:border-primary/30" id="categoryFilter">
-                                    <option value="all">Táº¥t cáº£ danh má»¥c</option>
-                                    <option th:each="cat : ${categories}" th:value="${cat.maDanhMuc}" th:text="${cat.tenDanhMuc}">VÄƒn há»c</option>
+                                    <option value="all">Tất cả loại sản phẩm</option>
+                                    <option th:each="cat : ${categories}" th:value="${cat.maDanhMuc}" th:attr="data-group=${cat.loaiSP}" th:text="${cat.tenDanhMuc}">Văn học</option>
                                 </select>
                                 <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-[16px] text-on-surface-variant pointer-events-none">expand_more</span>
                             </div>
@@ -198,7 +198,7 @@
                                         <td class="py-3 px-space-sm">
                                             <div class="w-12 h-14 bg-surface-container rounded-lg overflow-hidden shadow-sm flex-shrink-0">
                                                 <img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" 
-                                                     th:src="${b.moTa != null && b.moTa.startsWith('http') ? b.moTa : 'https://lh3.googleusercontent.com/aida-public/AB6AXuAJxhxEUoGYZXYaOldMaT7d3dcCRrYvCD-3AWG8q4nOBMKeBIhtPi1dKb9NiDZHTXWMxMULBn3rsm5dU8_IVOjwK8Bnkg8xf-IGsBbsQoLtc5D6EWqcU1KfQ1LzI9jMW8JHZBBy9sHF_7t1onS8pagaubUOfOqYifnPkQMRgKeMgWgWQ71XMqmHdC9fJzuMiB3aqbLZt8bE5qj4HVtt62KzVUKztkjut685dS6dOCMbTJ_WPnz-9N7y'}" 
+                                                     th:src="${b.moTa != null && b.moTa.startsWith('http') ? b.moTa : 'https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png'}" 
                                                      alt="áº¢nh sáº£n pháº©m"/>
                                             </div>
                                         </td>
@@ -338,6 +338,28 @@
             }
         }
 
+        window.filterDrawerCategories = function(val) {
+            const catSelect = document.getElementById('modalCategory');
+            if (!catSelect) return;
+            let firstMatch = null;
+            let currentValid = false;
+            Array.from(catSelect.options).forEach(opt => {
+                const catLoai = opt.getAttribute('data-loai') || 'Sach';
+                if (!val || catLoai === val) {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    if (!firstMatch) firstMatch = opt;
+                    if (opt.selected) currentValid = true;
+                } else {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                }
+            });
+            if (!currentValid && firstMatch) {
+                catSelect.value = firstMatch.value;
+            }
+        };
+
         function filterCatalog() {
             const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
             const loaiVal = loaiSPFilter ? loaiSPFilter.value : 'all';
@@ -365,14 +387,43 @@
         }
 
         if (searchInput) searchInput.addEventListener('input', filterCatalog);
-        if (loaiSPFilter) loaiSPFilter.addEventListener('change', filterCatalog);
+        if (loaiSPFilter) {
+            loaiSPFilter.addEventListener('change', function() {
+                if (categoryFilter) {
+                    const loai = this.value;
+                    const options = categoryFilter.querySelectorAll('option[data-group]');
+                    let hasCurrentSelected = false;
+                    options.forEach(opt => {
+                        const group = opt.getAttribute('data-group');
+                        if (loai === 'all' || !group || group === loai) {
+                            opt.hidden = false;
+                            opt.style.display = '';
+                            if (opt.value === categoryFilter.value) hasCurrentSelected = true;
+                        } else {
+                            opt.hidden = true;
+                            opt.style.display = 'none';
+                        }
+                    });
+                    if (loai !== 'all' && !hasCurrentSelected && categoryFilter.value !== 'all') {
+                        categoryFilter.value = 'all';
+                    }
+                }
+                filterCatalog();
+            });
+        }
         if (categoryFilter) categoryFilter.addEventListener('change', filterCatalog);
         if (stockFilter) stockFilter.addEventListener('change', filterCatalog);
 
         function resetFilters() {
             if (searchInput) searchInput.value = '';
             if (loaiSPFilter) loaiSPFilter.value = 'all';
-            if (categoryFilter) categoryFilter.value = 'all';
+            if (categoryFilter) {
+                categoryFilter.value = 'all';
+                categoryFilter.querySelectorAll('option[data-group]').forEach(opt => {
+                    opt.hidden = false;
+                    opt.style.display = '';
+                });
+            }
             if (stockFilter) stockFilter.value = 'all';
             filterCatalog();
         }
