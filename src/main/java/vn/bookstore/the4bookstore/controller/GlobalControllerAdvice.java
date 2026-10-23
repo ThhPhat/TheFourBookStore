@@ -40,6 +40,34 @@ public class GlobalControllerAdvice {
     @Autowired(required = false)
     private ShopService shopService;
 
+    @org.springframework.web.bind.annotation.InitBinder
+    public void initBinder(org.springframework.web.bind.WebDataBinder binder) {
+        binder.registerCustomEditor(Integer.class, new java.beans.PropertyEditorSupport() {
+            @Override
+            public void setAsText(String text) throws IllegalArgumentException {
+                if (text == null || text.trim().isEmpty()) {
+                    setValue(null);
+                    return;
+                }
+                try {
+                    String clean = text.trim();
+                    String digitsOnly = clean.replaceAll("[.,\\s]", "");
+                    if (!digitsOnly.isEmpty()) {
+                        setValue(Integer.parseInt(digitsOnly));
+                    } else {
+                        setValue(null);
+                    }
+                } catch (Exception e) {
+                    try {
+                        setValue((int) Math.round(Double.parseDouble(text.trim())));
+                    } catch (Exception ex) {
+                        setValue(null);
+                    }
+                }
+            }
+        });
+    }
+
     public GlobalControllerAdvice() {
     }
 
@@ -174,6 +202,32 @@ public class GlobalControllerAdvice {
         return getAllActiveCategories();
     }
 
+    @ModelAttribute("allMajorCategories")
+    public List<vn.bookstore.the4bookstore.entity.DanhMucLon> getAllMajorCategories() {
+        if (danhMucService == null) return List.of();
+        return danhMucService.getActiveMajorCategories();
+    }
+
+    public record MajorCategoryGroup(
+            vn.bookstore.the4bookstore.entity.DanhMucLon major,
+            List<DanhMuc> subs
+    ) {}
+
+    @ModelAttribute("majorCategoryGroups")
+    public List<MajorCategoryGroup> getMajorCategoryGroups() {
+        if (danhMucService == null) return List.of();
+        List<vn.bookstore.the4bookstore.entity.DanhMucLon> majors = danhMucService.getActiveMajorCategories();
+        List<DanhMuc> allActive = getAllActiveCategories();
+        if (majors == null || majors.isEmpty()) return List.of();
+
+        return majors.stream().map(m -> {
+            List<DanhMuc> subs = allActive.stream()
+                    .filter(dm -> m.getMaLoai() != null && m.getMaLoai().equalsIgnoreCase(dm.getLoaiSP()))
+                    .toList();
+            return new MajorCategoryGroup(m, subs);
+        }).toList();
+    }
+
     private String getCustomAvatar(Authentication authentication, HttpServletRequest request) {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
@@ -250,8 +304,30 @@ public class GlobalControllerAdvice {
         if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             return null;
         }
+        if (shopService == null) return null;
+
+        TaiKhoan tk = null;
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof CustomUserDetails userDetails) {
+            tk = userDetails.getTaiKhoan();
+        } else if (principal instanceof CustomOAuth2User oAuth2User) {
+            tk = oAuth2User.getTaiKhoan();
+        } else if (principal instanceof CustomOidcUser oidcUser) {
+            tk = oidcUser.getTaiKhoan();
+        }
+        if (tk == null && authentication.getName() != null) {
+            String name = authentication.getName();
+            tk = taiKhoanRepository.findByEmail(name).or(() -> taiKhoanRepository.findByTenDangNhap(name)).orElse(null);
+        }
+        if (tk != null) {
+            Optional<vn.bookstore.the4bookstore.entity.Shop> userShop = shopService.findByTaiKhoan(tk);
+            if (userShop.isPresent()) {
+                return userShop.get();
+            }
+        }
+
         KhachHang kh = getCachedKhachHang(authentication, request);
-        if (kh != null && kh.getTaiKhoan() != null && shopService != null) {
+        if (kh != null && kh.getTaiKhoan() != null) {
             Optional<vn.bookstore.the4bookstore.entity.Shop> userShop = shopService.findByTaiKhoan(kh.getTaiKhoan());
             if (userShop.isPresent()) {
                 return userShop.get();
@@ -259,6 +335,7 @@ public class GlobalControllerAdvice {
         }
         return null;
     }
+
 
     @ModelAttribute("userDisplayName")
     public String getUserDisplayName(Authentication authentication, HttpServletRequest request) {
