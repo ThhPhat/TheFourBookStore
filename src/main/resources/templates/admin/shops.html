@@ -169,7 +169,7 @@
                                             </form>
 
                                             <!-- Từ chối shop -->
-                                            <form th:if="${s.trangThai == 'ChoDuyet'}" th:action="@{'/admin/shops/' + ${s.maShop} + '/reject'}" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn TỪ CHỐI đơn đăng ký gian hàng này?');">
+                                            <form th:if="${s.trangThai == 'ChoDuyet'}" th:action="@{'/admin/shops/' + ${s.maShop} + '/reject'}" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn TỪ CHỐI và XÓA đơn đăng ký gian hàng này?');">
                                                 <button type="submit" class="px-3 py-1 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 transition-all flex items-center gap-1 cursor-pointer">
                                                     <span class="material-symbols-outlined text-xs">close</span>
                                                     <span>Từ chối</span>
