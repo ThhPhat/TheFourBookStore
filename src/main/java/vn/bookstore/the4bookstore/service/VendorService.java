@@ -71,6 +71,11 @@ public class VendorService {
         long returnRefundOrders = donHangRepository.countByShop_MaShopAndTrangThai(maShop, "TraHangHoanTien");
         long disputeOrders = donHangRepository.countByShop_MaShopAndTrangThai(maShop, "TranhChap");
 
+        java.time.LocalDate now = java.time.LocalDate.now();
+        LocalDateTime startOfMonth = now.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime endOfMonth = startOfMonth.plusMonths(1);
+
+        Long thisMonthRevenue = donHangRepository.getShopRevenueByDateRange(maShop, startOfMonth, endOfMonth);
         Long totalRevenue = donHangRepository.getShopRevenue(maShop);
         Long platformFee = donHangRepository.getShopPlatformFeePaid(maShop);
 
@@ -86,9 +91,11 @@ public class VendorService {
         stats.put("returnRefundOrders", returnRefundOrders);
         stats.put("disputeOrders", disputeOrders);
 
+        stats.put("thisMonthRevenue", thisMonthRevenue != null ? thisMonthRevenue : 0L);
         stats.put("totalRevenue", totalRevenue != null ? totalRevenue : 0L);
         stats.put("platformFee", platformFee != null ? platformFee : 0L);
         stats.put("netPayout", (totalRevenue != null ? totalRevenue : 0L));
+        stats.put("currentMonth", now.getMonthValue());
 
         return stats;
     }
@@ -169,13 +176,19 @@ public class VendorService {
             if (existing.getTrangThaiKhoa() == null || "ChoDuyet".equalsIgnoreCase(existing.getTrangThaiKhoa())) {
                 existing.setTrangThaiKhoa("BinhThuong");
             }
-            if (sanPham.getHinhAnh() != null && !sanPham.getHinhAnh().isBlank()) {
+            if (sanPham.getHinhAnh() != null && !sanPham.getHinhAnh().isBlank() && !"/images/default-book.png".equals(sanPham.getHinhAnh())) {
                 existing.setHinhAnh(sanPham.getHinhAnh());
             }
             existing.setTrangThai(sanPham.getTrangThai());
 
             if (maDanhMuc != null) {
-                existing.setDanhMuc(danhMucRepository.findById(maDanhMuc).orElse(null));
+                DanhMuc dm = danhMucRepository.findById(maDanhMuc).orElse(null);
+                if (dm != null) {
+                    existing.setDanhMuc(dm);
+                    if (dm.getLoaiSP() != null && !dm.getLoaiSP().isBlank()) {
+                        existing.setLoaiSP(dm.getLoaiSP());
+                    }
+                }
             }
             saved = sanPhamRepository.save(existing);
         } else {
@@ -183,14 +196,23 @@ public class VendorService {
             sanPham.setTrangThaiKhoa("BinhThuong");
             sanPham.setSoLuongDaBan(0);
             sanPham.setNgayTao(LocalDateTime.now());
-            if (sanPham.getLoaiSP() == null || "sach".equalsIgnoreCase(sanPham.getLoaiSP())) {
-                sanPham.setLoaiSP("Sach");
+            if (sanPham.getHinhAnh() == null || sanPham.getHinhAnh().isBlank() || "/images/default-book.png".equals(sanPham.getHinhAnh())) {
+                sanPham.setHinhAnh("https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
             }
             if (maDanhMuc != null) {
-                sanPham.setDanhMuc(danhMucRepository.findById(maDanhMuc).orElse(null));
+                DanhMuc dm = danhMucRepository.findById(maDanhMuc).orElse(null);
+                if (dm != null) {
+                    sanPham.setDanhMuc(dm);
+                    if (dm.getLoaiSP() != null && !dm.getLoaiSP().isBlank()) {
+                        sanPham.setLoaiSP(dm.getLoaiSP());
+                    }
+                }
             }
             if (sanPham.getDanhMuc() == null) {
                 sanPham.setDanhMuc(danhMucRepository.findAll().stream().findFirst().orElse(null));
+            }
+            if (sanPham.getLoaiSP() == null || "sach".equalsIgnoreCase(sanPham.getLoaiSP())) {
+                sanPham.setLoaiSP(sanPham.getDanhMuc() != null && sanPham.getDanhMuc().getLoaiSP() != null ? sanPham.getDanhMuc().getLoaiSP() : "Sach");
             }
             saved = sanPhamRepository.save(sanPham);
         }
@@ -464,6 +486,22 @@ public class VendorService {
     public KhuyenMai createShopPromotion(Integer maShop, KhuyenMai km) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
+
+        if (km.getNgayBatDau() != null && km.getNgayKetThuc() != null) {
+            if (km.getNgayBatDau().isAfter(km.getNgayKetThuc())) {
+                throw new IllegalArgumentException("Thời gian bắt đầu không được muộn hơn thời gian kết thúc!");
+            }
+        }
+
+        if ("Freeship".equalsIgnoreCase(km.getLoaiGiam())) {
+            km.setLoaiKhuyenMai("MIEN_PHI_VAN_CHUYEN");
+            if (km.getGiaTriGiam() == null || km.getGiaTriGiam() <= 0) {
+                km.setGiaTriGiam(30000);
+            }
+        } else if (km.getLoaiKhuyenMai() == null || km.getLoaiKhuyenMai().isBlank()) {
+            km.setLoaiKhuyenMai("GIAM_GIA_SAN_PHAM");
+        }
+
         km.setShop(shop);
         km.setPhamVi("SHOP");
         km.setTrangThai("HoatDong");

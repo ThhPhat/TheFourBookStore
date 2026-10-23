@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common/head :: common_head('Mã Giảm Giá Của Shop - Kênh Người Bán')}"></head>
+
+<body class="bg-surface font-body-md text-on-surface antialiased min-h-screen flex flex-col">
+
+    <header th:replace="~{fragments/common/navbar :: common_navbar('vendor')}"></header>
+
+    <main class="w-full pt-28 pb-16 flex-1 max-w-7xl mx-auto px-4 md:px-8">
+        <nav th:replace="~{fragments/vendor/vendor_nav :: vendor_navbar('promotions')}"></nav>
+
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <nav class="text-xs text-on-surface-variant flex items-center gap-1 mb-1">
+                    <a th:href="@{/vendor/dashboard}" class="hover:underline">Kênh người bán</a>
+                    <span class="material-symbols-outlined text-xs">chevron_right</span>
+                    <span class="text-primary font-semibold">Khuyến mãi của shop</span>
+                </nav>
+                <h1 class="text-2xl font-bold text-on-surface">Chương Trình Khuyến Mãi Của Shop</h1>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        <div th:if="${successMessage}" class="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold flex items-center gap-2">
+            <span class="material-symbols-outlined">check_circle</span>
+            <span th:text="${successMessage}"></span>
+        </div>
+        <div th:if="${errorMessage}" class="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold flex items-center gap-2">
+            <span class="material-symbols-outlined">error</span>
+            <span th:text="${errorMessage}"></span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Create Promo Form -->
+            <div class="lg:col-span-1 bg-surface-container-lowest p-6 rounded-3xl border border-surface-container shadow-sm h-fit">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-on-surface mb-4 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">add_circle</span>
+                    <span>Tạo Voucher Mới Cho Shop</span>
+                </h2>
+
+                <form th:action="@{/vendor/promotions/create}" method="post" class="space-y-4 text-xs">
+                    <div>
+                        <label class="block font-bold text-on-surface-variant mb-1">Tên Chương Trình <span class="text-error">*</span></label>
+                        <input type="text" name="tenKM" required placeholder="Ví dụ: Giảm 20k Cho Đơn Đầu"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-surface-container bg-surface-container-low focus:ring-2 focus:ring-primary"/>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-on-surface-variant mb-1">Mã Voucher (Code) <span class="text-error">*</span></label>
+                        <input type="text" name="maCode" required placeholder="SHOP20K" style="text-transform:uppercase"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-surface-container bg-surface-container-low font-bold text-primary focus:ring-2 focus:ring-primary"/>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-on-surface-variant mb-1">Loại Giảm</label>
+                            <select name="loaiGiam" id="vendorLoaiGiam" onchange="handleVendorLoaiGiamChange()" class="w-full px-3 py-2 rounded-xl border border-surface-container bg-surface-container-low focus:ring-2 focus:ring-primary">
+                                <option value="TienCoDinh">Giảm tiền (VNĐ)</option>
+                                <option value="PhanTram">Giảm phần trăm (%)</option>
+                                <option value="Freeship">Miễn phí vận chuyển (Freeship)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-on-surface-variant mb-1">Giá Trị Giảm <span class="text-error">*</span></label>
+                            <input type="number" name="giaTriGiam" required min="1" placeholder="20000"
+                                   class="w-full px-3 py-2 rounded-xl border border-surface-container bg-surface-container-low focus:ring-2 focus:ring-primary font-bold text-primary"/>
+                        </div>
+                    </div>
+
+                    <!-- Giảm tối đa bao nhiêu tiền (Chống lỗ khi giảm %) -->
+                    <div id="vendorGiamToiDaGroup">
+                        <label class="block font-bold text-on-surface-variant mb-1">
+                            Giảm Tối Đa (VNĐ) <span class="text-on-surface-variant font-normal text-[11px]">(Để trống = không giới hạn)</span>
+                        </label>
+                        <input type="number" name="giamToiDa" min="0" placeholder="VD: 50000 (Chống lỗ khi giảm %)"
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-surface-container bg-surface-container-low focus:ring-2 focus:ring-primary"/>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-on-surface-variant mb-1">Đơn Tối Thiểu (đ)</label>
+                            <input type="number" name="donToiThieu" min="0" value="0"
+                                   class="w-full px-3 py-2 rounded-xl border border-surface-container bg-surface-container-low focus:ring-2 focus:ring-primary"/>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-on-surface-variant mb-1">Số Lượng Mã</label>
+                            <input type="number" name="soLuongToiDa" min="1" value="100"
+                                   class="w-full px-3 py-2 rounded-xl border border-surface-container bg-surface-container-low focus:ring-2 focus:ring-primary"/>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-on-surface-variant mb-1">Bắt Đầu</label>
+                            <input type="datetime-local" name="ngayBatDau" required
+                                   class="w-full px-2.5 py-2 rounded-xl border border-surface-container bg-surface-container-low text-[11px]"/>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-on-surface-variant mb-1">Kết Thúc</label>
+                            <input type="datetime-local" name="ngayKetThuc" required
+                                   class="w-full px-2.5 py-2 rounded-xl border border-surface-container bg-surface-container-low text-[11px]"/>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 bg-primary text-on-primary font-bold rounded-xl hover:bg-primary-container shadow-sm transition-all mt-2">
+                        Phát Hành Voucher
+                    </button>
+                </form>
+            </div>
+
+            <!-- List Promos -->
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-surface-container-lowest p-6 rounded-3xl border border-surface-container shadow-sm">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-on-surface mb-4">Danh Sách Voucher Hiện Có</h2>
+                    <div class="divide-y divide-surface-container">
+                        <div th:each="km : ${promotions}" class="py-4 flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-bold text-xs" th:text="${km.maCode}">VOUCHER</span>
+                                    <h3 class="font-bold text-xs text-on-surface" th:text="${km.tenKM}">Tên KM</h3>
+                                </div>
+                                <div class="text-xs text-on-surface-variant mt-1">
+                                    <span>Giảm: </span>
+                                    <strong class="text-primary" th:text="${km.loaiGiam == 'Freeship' ? 'Miễn phí ship (tối đa ' + #numbers.formatDecimal(km.giaTriGiam, 0, 'COMMA', 0, 'POINT') + ' đ)' : (km.loaiGiam == 'PhanTram' ? km.giaTriGiam + '%' : #numbers.formatDecimal(km.giaTriGiam, 0, 'COMMA', 0, 'POINT') + ' đ')}"></strong>
+                                    <span th:if="${km.loaiGiam == 'PhanTram' and km.giamToiDa != null}" th:text="' (tối đa ' + ${#numbers.formatDecimal(km.giamToiDa, 0, 'COMMA', 0, 'POINT')} + ' đ)'" class="text-primary font-semibold"></span>
+                                    <span th:if="${km.donToiThieu != null}" th:text="' | Đơn tối thiểu: ' + ${#numbers.formatDecimal(km.donToiThieu, 0, 'COMMA', 0, 'POINT')} + ' đ'"></span>
+                                </div>
+                                <div class="text-[11px] text-on-surface-variant/80 mt-0.5" th:text="'HSD: ' + ${#temporals.format(km.ngayKetThuc, 'dd/MM/yyyy HH:mm')}">HSD</div>
+                            </div>
+                            <div class="text-right flex items-center gap-3">
+                                <div class="flex flex-col items-end">
+                                    <span th:if="${km.trangThai == 'HoatDong'}" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Hoạt Động</span>
+                                    <span th:unless="${km.trangThai == 'HoatDong'}" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-surface-container-high text-on-surface-variant">Vô Hiệu Hóa</span>
+                                    <div class="text-[11px] text-on-surface-variant mt-1" th:text="'Đã dùng: ' + ${km.soLuongDaDung} + '/' + ${km.soLuongToiDa != null ? km.soLuongToiDa : '∞'}">Đã dùng</div>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <form th:action="@{'/vendor/promotions/' + ${km.maKM} + '/toggle'}" method="post" class="inline">
+                                        <button type="submit"
+                                                th:title="${km.trangThai == 'HoatDong' ? 'Tạm dừng voucher' : 'Kích hoạt lại voucher'}"
+                                                class="p-2 rounded-xl border border-surface-container hover:bg-surface-container text-on-surface-variant transition-colors flex items-center justify-center cursor-pointer">
+                                            <span class="material-symbols-outlined text-[18px]"
+                                                  th:text="${km.trangThai == 'HoatDong' ? 'pause_circle' : 'play_circle'}"
+                                                  th:classappend="${km.trangThai == 'HoatDong' ? 'text-amber-600' : 'text-emerald-600'}"></span>
+                                        </button>
+                                    </form>
+                                    <form th:action="@{'/vendor/promotions/' + ${km.maKM} + '/delete'}" method="post" class="inline"
+                                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa voucher này không?');">
+                                        <button type="submit"
+                                                title="Xóa voucher"
+                                                class="p-2 rounded-xl border border-error/20 bg-error/5 hover:bg-error/10 text-error transition-colors flex items-center justify-center cursor-pointer">
+                                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div th:if="${promotions.isEmpty()}" class="py-8 text-center text-xs text-on-surface-variant">
+                            Shop chưa tạo mã khuyến mãi nào.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{fragments/common/footer :: common_footer}"></footer>
+    <script>
+        function handleVendorLoaiGiamChange() {
+            const select = document.getElementById('vendorLoaiGiam');
+            const inputVal = document.querySelector('input[name="giaTriGiam"]');
+            const giamToiDaInput = document.querySelector('input[name="giamToiDa"]');
+            if (!select) return;
+
+            if (select.value === 'Freeship') {
+                if (inputVal && (!inputVal.value || inputVal.value === '20000')) {
+                    inputVal.value = '30000';
+                }
+                if (giamToiDaInput) giamToiDaInput.placeholder = 'VD: 30000 (Tối đa)';
+            } else if (select.value === 'PhanTram') {
+                if (inputVal && parseInt(inputVal.value) > 100) {
+                    inputVal.value = '10';
+                }
+                if (giamToiDaInput) giamToiDaInput.placeholder = 'VD: 50000 (Chống lỗ khi giảm %)';
+            } else {
+                if (giamToiDaInput) giamToiDaInput.placeholder = 'Không cần thiết khi giảm tiền cố định';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const startInput = document.querySelector('input[name="ngayBatDau"]');
+                    const endInput = document.querySelector('input[name="ngayKetThuc"]');
+                    if (startInput && endInput && startInput.value && endInput.value) {
+                        const startDate = new Date(startInput.value);
+                        const endDate = new Date(endInput.value);
+                        if (startDate > endDate) {
+                            e.preventDefault();
+                            alert('Thời gian bắt đầu không được muộn hơn thời gian kết thúc!');
+                            endInput.focus();
+                            return false;
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
