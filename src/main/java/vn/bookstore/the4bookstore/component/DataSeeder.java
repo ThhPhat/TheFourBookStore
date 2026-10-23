@@ -57,7 +57,7 @@ public class DataSeeder implements CommandLineRunner {
             } catch (Exception ignored) {}
         }
 
-        String defaultPassword = passwordEncoder.encode("123456");
+        String defaultPassword = passwordEncoder.encode("Abc@123");
 
         // 1. Tạo tài khoản mẫu nếu chưa tồn tại trong cơ sở dữ liệu
         createAccountIfNotFound("admin", "ADMIN", defaultPassword, "admin@the4bookstore.vn");
@@ -102,33 +102,33 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         // Seed Categories
-        DanhMuc catFiction = createCategoryIfNotFound("Tiểu Thuyết & Văn Học", "Tác phẩm tiểu thuyết trong và ngoài nước");
-        DanhMuc catSelfHelp = createCategoryIfNotFound("Phát Triển Bản Thân", "Kỹ năng sống, tư duy và phát triển cá nhân");
-        DanhMuc catEcon = createCategoryIfNotFound("Kinh Tế & Tài Chính", "Kinh doanh, đầu tư và tâm lý tài chính");
-        DanhMuc catHistory = createCategoryIfNotFound("Khoa Học & Lịch Sử", "Lịch sử nhân loại, vũ trụ và khoa học thường thức");
-        DanhMuc catSciFi = createCategoryIfNotFound("Khoa Học Viễn Tưởng", "Tiểu thuyết viễn tưởng kinh điển và hiện đại");
+        DanhMuc catFiction = createCategoryIfNotFound("Tiểu Thuyết & Văn Học", "Tác phẩm tiểu thuyết trong và ngoài nước", "Sach");
+        DanhMuc catSelfHelp = createCategoryIfNotFound("Phát Triển Bản Thân", "Kỹ năng sống, tư duy và phát triển cá nhân", "Sach");
+        DanhMuc catEcon = createCategoryIfNotFound("Kinh Tế & Tài Chính", "Kinh doanh, đầu tư và tâm lý tài chính", "Sach");
+        DanhMuc catHistory = createCategoryIfNotFound("Khoa Học & Lịch Sử", "Lịch sử nhân loại, vũ trụ và khoa học thường thức", "Sach");
+        DanhMuc catSciFi = createCategoryIfNotFound("Khoa Học Viễn Tưởng", "Tiểu thuyết viễn tưởng kinh điển và hiện đại", "Sach");
 
         // Seed Books
         createBook("The Midnight Library", "978-0525559474", 189000, 25, catFiction,
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuAJxhxEUoGYZXYaOldMaT7d3dcCRrYvCD-3AWG8q4nOBMKeBIhtPi1dKb9NiDZHTXWMxMULBn3rsm5dU8_IVOjwK8Bnkg8xf-IGsBbsQoLtc5D6EWqcU1KfQ1LzI9jMW8JHZBBy9sHF_7t1onS8pagaubUOfOqYifnPkQMRgKeMgWgWQ71XMqmHdC9fJzuMiB3aqbLZt8bE5qj4HVtt62KzVUKztkjut685dS6dOCMbTJ_WPnz-9N7y");
+                "https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
 
         createBook("Atomic Habits - Thay Đổi Tí Hon", "978-0735211292", 220000, 0, catSelfHelp,
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuC0ZepDd_foKXu3i6ER1m8WWEdur0sxuw_PzY9MNfI4REnQ3rf6R_2Cm9EnfFAhXCPxQTTtVl4s2CrHSmtbVz08lHsAHDSiErKboS8Y4p5NQiHrun0Ek56kgIt1soK3hBbriVWEntfW_SHfXzkp7nmY2OyfVyfhAuJ50SpGyqZseN_277pw-RUdZgMOpRkN3ksmBAnBDCRnpGWTd3UWhZiP2GhZTpYd0mZ4A0F2WZ20z_Y2aCKwxl9w");
+                "https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
 
         createBook("Tâm Lý Học Về Tiền", "978-0857197689", 150000, 3, catEcon,
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuAUSZ5dqoRMUTssXIap1lFtbGqNj76EO4_JpeLICxgK6i8RQ-b6FBevsmTpBNYLqOGOhEJmM72f7BeRd_P6wYVJ0WrTJJCFwjmrX7y4IYbT9cGZhUYpfZ41NtYpK8wDRUwUU5JolPlF4JYof0nf-Mnjr2hBZFwxagtPhNGSVfaR65hlzsL-oDdP7Q53Ww7C4vzv_B90IFfI-_FjyHy7V4wP5GHZfTpmShIiBp4oEL19xwu0tRaTGEgW");
+                "https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
 
         createBook("Sapiens: Lược Sử Loài Người", "978-0062316097", 265000, 38, catHistory,
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuCG70bn_Qqg9AKCp8J9XwZoQ0H8otME2a1VxaIQ9mbLAQk60DgJssT5k7D_fsGf6ttO0j-TROb1NzE4QR1_sbRLD856RV8UIFgynUd7SujhVFdhLBJkAPHxPynAmPFKFoKuLSY2tyJX9T_1SDen13Mk4MN2urDBWhtknhDsTK8-O2oLxA8yjhXNZy0YUWK2U5gHXvRhAIj2d-YivtCOD_hFsb8Qu8Z00zBpmbfcRC4at7Dd35UbsRB0");
+                "https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
 
         createBook("Cây Cam Ngọt Của Tôi", "978-6047781234", 108000, 45, catFiction,
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuAJxhxEUoGYZXYaOldMaT7d3dcCRrYvCD-3AWG8q4nOBMKeBIhtPi1dKb9NiDZHTXWMxMULBn3rsm5dU8_IVOjwK8Bnkg8xf-IGsBbsQoLtc5D6EWqcU1KfQ1LzI9jMW8JHZBBy9sHF_7t1onS8pagaubUOfOqYifnPkQMRgKeMgWgWQ71XMqmHdC9fJzuMiB3aqbLZt8bE5qj4HVtt62KzVUKztkjut685dS6dOCMbTJ_WPnz-9N7y");
+                "https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
 
         createBook("Dune - Xứ Cát", "978-0441013593", 245000, 18, catSciFi,
-                "https://lh3.googleusercontent.com/aida-public/AB6AXuCG70bn_Qqg9AKCp8J9XwZoQ0H8otME2a1VxaIQ9mbLAQk60DgJssT5k7D_fsGf6ttO0j-TROb1NzE4QR1_sbRLD856RV8UIFgynUd7SujhVFdhLBJkAPHxPynAmPFKFoKuLSY2tyJX9T_1SDen13Mk4MN2urDBWhtknhDsTK8-O2oLxA8yjhXNZy0YUWK2U5gHXvRhAIj2d-YivtCOD_hFsb8Qu8Z00zBpmbfcRC4at7Dd35UbsRB0");
+                "https://res.cloudinary.com/vkqtqiha/image/upload/v1791217232/the4bookstore/books/wqfgfnpkibjhi1vheb1n.png");
     }
 
-    private DanhMuc createCategoryIfNotFound(String name, String desc) {
+    private DanhMuc createCategoryIfNotFound(String name, String desc, String loaiSP) {
         return danhMucRepository.findAll().stream()
                 .filter(d -> d.getTenDanhMuc().equalsIgnoreCase(name))
                 .findFirst()
@@ -136,6 +136,7 @@ public class DataSeeder implements CommandLineRunner {
                     DanhMuc dm = new DanhMuc();
                     dm.setTenDanhMuc(name);
                     dm.setMoTa(desc);
+                    dm.setLoaiSP(loaiSP != null ? loaiSP : "Sach");
                     dm.setTrangThai(true);
                     return danhMucRepository.save(dm);
                 });
@@ -158,14 +159,14 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedStationeryAndGifts() {
         // Danh mục của Văn phòng phẩm
-        DanhMuc catSoTay = createCategoryIfNotFound("Sổ Tay", "Sổ tay da, sổ ghi chép, sổ kế hoạch");
-        DanhMuc catBut = createCategoryIfNotFound("Bút", "Các loại bút viết, bút máy, bút bi cao cấp");
-        DanhMuc catDungCu = createCategoryIfNotFound("Dụng Cụ Học Tập & Làm Việc", "Kẹp sách, đèn đọc sách, thước kẻ và phụ kiện");
+        DanhMuc catSoTay = createCategoryIfNotFound("Sổ Tay & Vở Viết", "Sổ tay da, sổ ghi chép, sổ kế hoạch", "VanPhongPham");
+        DanhMuc catBut = createCategoryIfNotFound("Bút & Dụng Cụ Viết", "Các loại bút viết, bút máy, bút bi cao cấp", "VanPhongPham");
+        DanhMuc catDungCu = createCategoryIfNotFound("Dụng Cụ Học Tập & Văn Phòng", "Kẹp sách, đèn đọc sách, thước kẻ và phụ kiện", "VanPhongPham");
 
         // Danh mục của Quà tặng & Trang trí
-        DanhMuc catTuiTote = createCategoryIfNotFound("Túi Tote", "Túi vải canvas thời trang phong cách mọt sách");
-        DanhMuc catBookNook = createCategoryIfNotFound("Mô Hình Book Nook", "Mô hình gỗ 3D Book Nook trang trí giá sách");
-        DanhMuc catBoardgame = createCategoryIfNotFound("Boardgame & Quà Tặng", "Trò chơi boardgame trí tuệ và hộp quà tặng độc đáo");
+        DanhMuc catTuiTote = createCategoryIfNotFound("Túi Tote & Thời Trang Sách", "Túi vải canvas thời trang phong cách mọt sách", "QuaTang");
+        DanhMuc catBookNook = createCategoryIfNotFound("Mô Hình Book Nook & Trang Trí", "Mô hình gỗ 3D Book Nook trang trí giá sách", "QuaTang");
+        DanhMuc catBoardgame = createCategoryIfNotFound("Boardgame & Hộp Quà Tặng", "Trò chơi boardgame trí tuệ và hộp quà tặng độc đáo", "QuaTang");
 
         createProductItem("Sổ Tay Bìa Da Vintage Classic", "VPP-001", "VanPhongPham", 85000, 40, catSoTay,
                 "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&auto=format&fit=crop&q=80");
