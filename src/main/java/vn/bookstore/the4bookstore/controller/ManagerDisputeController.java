@@ -83,7 +83,7 @@ public class ManagerDisputeController {
     public String rejectShop(@PathVariable Integer id, RedirectAttributes redirectAttributes) {
         try {
             shopService.tuChoiShop(id);
-            redirectAttributes.addFlashAttribute("successMessage", "Đã từ chối và xóa đơn đăng ký gian hàng #" + id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã từ chối đơn đăng ký gian hàng #" + id);
         } catch (Exception ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }

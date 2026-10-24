@@ -164,8 +164,11 @@ public class ShopService {
 
     @org.springframework.cache.annotation.CacheEvict(value = "pendingShopCount", allEntries = true)
     public void tuChoiShop(Integer maShop) {
-        // Từ chối đơn đăng ký gian hàng: xóa luôn bản ghi gian hàng để không tồn đọng trong danh sách quản lý
-        xoaShop(maShop);
+        Shop shop = shopRepository.findById(maShop)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
+        shop.setTrangThai("TuChoi");
+        shop.setNgayCapNhat(LocalDateTime.now());
+        shopRepository.save(shop);
     }
 
     public void khoaShop(Integer maShop) {
