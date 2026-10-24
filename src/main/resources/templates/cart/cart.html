@@ -395,7 +395,7 @@
                     </div>
                 </div>
 
-                <form th:action="@{/gio-hang/dat-hang}" method="post" class="space-y-4" id="orderSubmitForm">
+                <form th:action="@{/gio-hang/dat-hang}" method="post" class="space-y-4" id="orderSubmitForm" onsubmit="return validateCheckoutAddressForm();">
                     <!-- Hidden container for selected products -->
                     <div id="modalSelectedProductsContainer"></div>
                     <!-- Hidden inputs for applied vouchers -->
@@ -421,7 +421,7 @@
                                 <input type="radio" name="maDiaChi" th:id="'addr_' + ${dc.maDiaChi}" th:value="${dc.maDiaChi}" 
                                        th:checked="${dc.macDinh}"
                                        class="mt-1 text-primary focus:ring-primary w-4 h-4 cursor-pointer addr-radio"
-                                       onchange="toggleCustomAddress(false)"/>
+                                       onchange="toggleCustomAddress(false); fetchShippingEstimate();"/>
                                 <label th:for="'addr_' + ${dc.maDiaChi}" class="flex-1 cursor-pointer text-xs">
                                     <div class="flex items-center gap-2">
                                         <strong class="text-on-surface" th:text="${dc.hoTenNguoiNhan}">Người nhận</strong>
@@ -435,7 +435,7 @@
                             <!-- Option to enter custom address -->
                             <div class="p-3 rounded-2xl border border-surface-container bg-surface-container-low flex items-center gap-2.5 cursor-pointer hover:border-primary/40">
                                 <input type="radio" name="maDiaChi" id="addr_custom" value="" class="text-primary focus:ring-primary w-4 h-4 cursor-pointer addr-radio"
-                                       onchange="toggleCustomAddress(true)"/>
+                                       onchange="toggleCustomAddress(true); fetchShippingEstimate();"/>
                                 <label for="addr_custom" class="cursor-pointer text-xs font-semibold text-on-surface">
                                     + Nhập địa chỉ người nhận mới cho đơn hàng này
                                 </label>
@@ -458,12 +458,76 @@
                                            placeholder="0912 345 678" pattern="[0-9]{10,11}" class="w-full bg-surface-container-low px-3.5 py-2.5 rounded-xl font-body-md text-xs sm:text-sm text-on-surface border border-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30" />
                                 </div>
                             </div>
-                            <div>
-                                <label class="block font-label-md text-xs font-semibold text-on-surface mb-1">Địa chỉ giao hàng chi tiết</label>
-                                <input name="diaChiGiao" type="text" 
-                                       th:value="${khachHang?.diaChi}"
-                                       placeholder="123 Đường Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP.HCM" class="w-full bg-surface-container-low px-3.5 py-2.5 rounded-xl font-body-md text-xs sm:text-sm text-on-surface border border-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                            <!-- Dòng ví dụ mẫu nổi bật cho người dùng -->
+                            <div class="p-2.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-on-surface flex items-start gap-2">
+                                <span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">lightbulb</span>
+                                <div>
+                                    <div class="font-bold text-primary">Cấu trúc địa chỉ chuẩn mới: <span class="font-normal text-on-surface">số nhà + tên đường, phường, tỉnh (34 Tỉnh/Thành)</span></div>
+                                    <div class="text-on-surface-variant text-[11px] mt-0.5">
+                                        Ví dụ mẫu: <strong class="text-on-surface font-mono">1 Võ Văn Ngân, Phường Linh Chiểu, TP. Hồ Chí Minh</strong>
+                                    </div>
+                                </div>
                             </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block font-label-md text-xs font-semibold text-on-surface mb-1">Tỉnh / Thành phố <span class="text-error">*</span></label>
+                                    <input list="vietnamProvinces" id="customTinhThanh" placeholder="Chọn trong 34 tỉnh/thành..." 
+                                           class="w-full bg-surface-container-low px-3.5 py-2.5 rounded-xl font-body-md text-xs sm:text-sm text-on-surface border border-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                           oninput="updateCustomCombinedAddress()" />
+                                    <datalist id="vietnamProvinces">
+                                        <option value="TP. Hồ Chí Minh"></option>
+                                        <option value="TP. Hà Nội"></option>
+                                        <option value="TP. Hải Phòng"></option>
+                                        <option value="TP. Đà Nẵng"></option>
+                                        <option value="TP. Cần Thơ"></option>
+                                        <option value="TP. Huế"></option>
+                                        <option value="An Giang"></option>
+                                        <option value="Bắc Ninh"></option>
+                                        <option value="Cà Mau"></option>
+                                        <option value="Cao Bằng"></option>
+                                        <option value="Đắk Lắk"></option>
+                                        <option value="Điện Biên"></option>
+                                        <option value="Đồng Nai"></option>
+                                        <option value="Đồng Tháp"></option>
+                                        <option value="Gia Lai"></option>
+                                        <option value="Hà Tĩnh"></option>
+                                        <option value="Hưng Yên"></option>
+                                        <option value="Khánh Hòa"></option>
+                                        <option value="Lai Châu"></option>
+                                        <option value="Lâm Đồng"></option>
+                                        <option value="Lạng Sơn"></option>
+                                        <option value="Lào Cai"></option>
+                                        <option value="Nghệ An"></option>
+                                        <option value="Ninh Bình"></option>
+                                        <option value="Phú Thọ"></option>
+                                        <option value="Quảng Ngãi"></option>
+                                        <option value="Quảng Ninh"></option>
+                                        <option value="Quảng Trị"></option>
+                                        <option value="Sơn La"></option>
+                                        <option value="Tây Ninh"></option>
+                                        <option value="Thái Nguyên"></option>
+                                        <option value="Thanh Hóa"></option>
+                                        <option value="Tuyên Quang"></option>
+                                        <option value="Vĩnh Long"></option>
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label class="block font-label-md text-xs font-semibold text-on-surface mb-1">Phường / Xã <span class="text-error">*</span></label>
+                                    <input type="text" id="customPhuongXa" placeholder="Ví dụ: Phường Linh Chiểu"
+                                           class="w-full bg-surface-container-low px-3.5 py-2.5 rounded-xl font-body-md text-xs sm:text-sm text-on-surface border border-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                           oninput="updateCustomCombinedAddress()" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block font-label-md text-xs font-semibold text-on-surface mb-1">Số nhà + Tên đường <span class="text-error">*</span></label>
+                                <input type="text" id="customSoNhaTenDuong" 
+                                       th:value="${khachHang?.diaChi}"
+                                       placeholder="Ví dụ: 1 Võ Văn Ngân (hoặc 123 Nguyễn Trãi)" 
+                                       class="w-full bg-surface-container-low px-3.5 py-2.5 rounded-xl font-body-md text-xs sm:text-sm text-on-surface border border-surface-container focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                       oninput="updateCustomCombinedAddress()" />
+                            </div>
+                            <input type="hidden" name="diaChiGiao" id="hiddenFinalDiaChiGiao" th:value="${khachHang?.diaChi}" />
                         </div>
                     </div>
 
@@ -477,7 +541,7 @@
                                     <input type="radio" name="maNvc" th:value="${c.maNvc}" th:checked="${stat.first}" 
                                            class="text-primary focus:ring-primary w-4 h-4 cursor-pointer carrier-radio"
                                            th:data-fee="${c.phiCoBan}"
-                                           onchange="updateShippingFee(this)"/>
+                                           onchange="updateShippingFee(this); fetchShippingEstimate();"/>
                                     <div>
                                         <div class="font-bold text-xs text-on-surface" th:text="${c.tenNvc}">GHN</div>
                                         <div class="text-[10px] text-on-surface-variant" th:text="${c.thoiGianDuKien != null ? c.thoiGianDuKien : '24 - 48 Giờ'}">24h - 48h</div>
@@ -497,6 +561,20 @@
                     <div>
                         <label class="block font-label-md text-xs font-semibold text-on-surface mb-1.5">Sản phẩm được chọn mua (<span id="modalSelectedCount">0</span>)</label>
                         <div id="modalSelectedList" class="max-h-36 overflow-y-auto space-y-1.5 bg-surface-container-low p-2.5 rounded-xl border border-surface-container text-xs">
+                        </div>
+                    </div>
+
+                    <!-- Package Shipping Breakdown in modal -->
+                    <div class="pt-1">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="font-label-md text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px] text-primary">local_shipping</span>
+                                <span>Phân chia kiện hàng & Phí ship (<span id="modalPackageCount">1 kiện</span>)</span>
+                            </label>
+                            <span class="text-[10px] text-primary font-medium" id="shippingEngineStatus"></span>
+                        </div>
+                        <div id="modalPackageList" class="space-y-2 max-h-48 overflow-y-auto bg-surface-container-low p-2.5 rounded-xl border border-surface-container text-xs">
+                            <div class="text-on-surface-variant italic py-1 text-center">Đang tính toán cước theo địa chỉ...</div>
                         </div>
                     </div>
 
@@ -610,6 +688,8 @@
         // Two independent active vouchers
         let activeOrderVoucher = null;     // { code, discountAmount, loaiGiam, giaTriGiam, giamToiDa, voucherType: 'ORDER_DISCOUNT' }
         let activeShippingVoucher = null;  // { code, discountAmount, loaiGiam, giaTriGiam, voucherType: 'SHIPPING_DISCOUNT' }
+        let currentCalculatedShippingFee = null;
+        let currentShippingDiscount = null;
 
         function formatVND(amount) {
             return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
@@ -677,6 +757,8 @@
             }
             if (typeof overrideShippingFee === 'number') {
                 carrierFee = overrideShippingFee;
+            } else if (typeof currentCalculatedShippingFee === 'number') {
+                carrierFee = currentCalculatedShippingFee;
             }
 
             let originalShippingFee = 0;
@@ -706,7 +788,13 @@
             // 2. Calculate Shipping Discount (only on originalShippingFee)
             let shippingDiscountAmount = 0;
             let effectiveShippingFee = originalShippingFee;
-            if (activeShippingVoucher && originalShippingFee > 0) {
+            if (typeof overrideShippingDiscount === 'number') {
+                shippingDiscountAmount = Math.min(originalShippingFee, overrideShippingDiscount);
+                effectiveShippingFee = Math.max(0, originalShippingFee - shippingDiscountAmount);
+            } else if (typeof currentShippingDiscount === 'number') {
+                shippingDiscountAmount = Math.min(originalShippingFee, currentShippingDiscount);
+                effectiveShippingFee = Math.max(0, originalShippingFee - shippingDiscountAmount);
+            } else if (activeShippingVoucher && originalShippingFee > 0) {
                 const maxFreeship = activeShippingVoucher.giaTriGiam || 30000;
                 shippingDiscountAmount = Math.min(originalShippingFee, maxFreeship);
                 effectiveShippingFee = Math.max(0, originalShippingFee - shippingDiscountAmount);
@@ -1088,12 +1176,156 @@
             const modal = document.getElementById('checkoutModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+
+            // Tự động tính cước vận chuyển theo khoảng cách kho của từng Shop
+            fetchShippingEstimate();
         }
 
         function closeCheckoutModal() {
             const modal = document.getElementById('checkoutModal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+        }
+
+        function updateCustomCombinedAddress() {
+            const tinh = document.getElementById('customTinhThanh') ? document.getElementById('customTinhThanh').value.trim() : '';
+            const phuong = document.getElementById('customPhuongXa') ? document.getElementById('customPhuongXa').value.trim() : '';
+            const soNha = document.getElementById('customSoNhaTenDuong') ? document.getElementById('customSoNhaTenDuong').value.trim() : '';
+
+            const parts = [];
+            if (soNha) parts.push(soNha);
+            if (phuong) parts.push(phuong);
+            if (tinh) parts.push(tinh);
+
+            const fullAddr = parts.join(', ');
+            const hiddenInput = document.getElementById('hiddenFinalDiaChiGiao');
+            if (hiddenInput) {
+                hiddenInput.value = fullAddr;
+            }
+            debounceShippingEstimate();
+        }
+
+        function validateCheckoutAddressForm() {
+            const customAddrRadio = document.getElementById('addr_custom');
+            const checkedAddr = document.querySelector('input[name="maDiaChi"]:checked');
+            const isCustom = !checkedAddr || (customAddrRadio && customAddrRadio.checked) || checkedAddr.value === '';
+            if (isCustom) {
+                const tinh = document.getElementById('customTinhThanh') ? document.getElementById('customTinhThanh').value.trim() : '';
+                const phuong = document.getElementById('customPhuongXa') ? document.getElementById('customPhuongXa').value.trim() : '';
+                const soNha = document.getElementById('customSoNhaTenDuong') ? document.getElementById('customSoNhaTenDuong').value.trim() : '';
+                if (!tinh || !phuong || !soNha) {
+                    alert('Vui lòng nhập đầy đủ theo mẫu (Số nhà + Tên đường, Phường/Xã, Tỉnh/Thành phố) để hệ thống tính phí vận chuyển chính xác!');
+                    return false;
+                }
+                updateCustomCombinedAddress();
+            }
+            return true;
+        }
+
+        let shippingDebounceTimer = null;
+        function debounceShippingEstimate() {
+            clearTimeout(shippingDebounceTimer);
+            shippingDebounceTimer = setTimeout(() => {
+                fetchShippingEstimate();
+            }, 600);
+        }
+
+        async function fetchShippingEstimate() {
+            const calc = recalculateSelectedCart();
+            if (!calc || !calc.selectedProductIds || calc.selectedProductIds.length === 0) return;
+
+            const statusEl = document.getElementById('shippingEngineStatus');
+            if (statusEl) statusEl.textContent = 'Đang tính cước theo khoảng cách...';
+
+            // Lấy địa chỉ đang chọn
+            const checkedAddr = document.querySelector('input[name="maDiaChi"]:checked');
+            let maDiaChi = checkedAddr ? checkedAddr.value : '';
+            const diaChiInput = document.querySelector('input[name="diaChiGiao"]');
+            let diaChiGiao = diaChiInput ? diaChiInput.value : '';
+
+            // Lấy đơn vị vận chuyển
+            const checkedCarrier = document.querySelector('input[name="maNvc"]:checked');
+            let maNvc = checkedCarrier ? checkedCarrier.value : '';
+
+            let shippingVoucherCode = activeShippingVoucher ? activeShippingVoucher.code : '';
+
+            const formData = new URLSearchParams();
+            if (maDiaChi) formData.append('maDiaChi', maDiaChi);
+            if (diaChiGiao) formData.append('diaChiGiao', diaChiGiao);
+            if (maNvc) formData.append('maNvc', maNvc);
+            if (shippingVoucherCode) formData.append('maVoucherShipping', shippingVoucherCode);
+            calc.selectedProductIds.forEach(id => formData.append('selectedProductIds', id));
+
+            try {
+                const res = await fetch('/api/gio-hang/tinh-phi-ship', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData.toString()
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    renderPackageBreakdown(data);
+                    currentCalculatedShippingFee = data.totalOriginalShippingFee;
+                    currentShippingDiscount = data.totalShippingDiscount;
+                    recalculateSelectedCart(data.totalOriginalShippingFee, data.totalShippingDiscount);
+                    if (statusEl) {
+                        const addrShort = data.destinationAddress.length > 28 ? data.destinationAddress.substring(0, 28) + '...' : data.destinationAddress;
+                        statusEl.textContent = `Tọa độ giao: ${addrShort}`;
+                    }
+                }
+            } catch (err) {
+                console.warn('Lỗi tính cước vận chuyển:', err);
+                if (statusEl) statusEl.textContent = 'Cước tiêu chuẩn';
+            }
+        }
+
+        function renderPackageBreakdown(data) {
+            const container = document.getElementById('modalPackageList');
+            const countEl = document.getElementById('modalPackageCount');
+            if (!container) return;
+
+            if (countEl) countEl.textContent = `${data.packageCount || 1} kiện hàng`;
+
+            container.innerHTML = '';
+            if (!data.packages || data.packages.length === 0) {
+                container.innerHTML = '<div class="text-on-surface-variant italic py-1 text-center">Không có kiện hàng nào.</div>';
+                return;
+            }
+
+            data.packages.forEach((pkg, idx) => {
+                const pkgDiv = document.createElement('div');
+                pkgDiv.className = 'p-2.5 rounded-xl bg-surface-container/70 border border-surface-container flex flex-col gap-1.5';
+                
+                const finalFeeText = pkg.finalFee === 0 
+                    ? '<span class="text-teal-700 font-bold">Miễn Phí</span>' 
+                    : `<span class="font-mono font-bold text-primary">${formatVND(pkg.finalFee)}</span>`;
+                const discountBadge = pkg.shippingDiscount > 0 
+                    ? `<span class="text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-bold">Freeship -${formatVND(pkg.shippingDiscount)}</span>` 
+                    : '';
+
+                pkgDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="w-2 h-2 rounded-full bg-primary shrink-0"></span>
+                            <span class="font-bold text-on-surface truncate">Kiện ${idx + 1}: ${pkg.shopName}</span>
+                            <span class="text-[10px] text-on-surface-variant font-mono shrink-0">(${pkg.itemCount} món)</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${discountBadge}
+                            ${finalFeeText}
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-on-surface-variant">
+                        <div class="truncate pr-2">Kho shop: <span class="text-on-surface font-medium">${pkg.shopAddress}</span></div>
+                        <div class="shrink-0 font-medium text-primary">${pkg.distanceKm} km (${pkg.tierName})</div>
+                    </div>
+                    <div class="flex items-center justify-between text-[10px] text-on-surface-variant/80 border-t border-surface-container-highest/40 pt-1">
+                        <span>Dự kiến: <strong>${pkg.estimatedDays}</strong></span>
+                        <span>Tiền hàng: <strong class="font-mono text-on-surface">${formatVND(pkg.subtotal)}</strong></span>
+                    </div>
+                `;
+                container.appendChild(pkgDiv);
+            });
         }
 
         // Payment method radio styling
