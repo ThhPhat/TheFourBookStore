@@ -42,31 +42,31 @@
                     <span class="material-symbols-outlined text-[16px] text-primary">category</span>
                     <span>Danh mục:</span>
                 </span>
-                <a th:href="@{/san-pham(q=${keyword}, sort=${sortBy})}"
+                <a th:href="@{/san-pham(q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy})}"
                    class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs">
                     Tất cả danh mục
                 </a>
                 <th:block th:if="${allMajorCategories != null && !allMajorCategories.isEmpty()}">
                     <a th:each="major : ${allMajorCategories}"
-                       th:href="@{${major.slugUrl}(q=${keyword}, sort=${sortBy})}"
+                       th:href="@{${major.slugUrl}(q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy})}"
                        th:text="${major.tenLoai}"
                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium transition-all">
                         Tên danh mục
                     </a>
                 </th:block>
                 <th:block th:unless="${allMajorCategories != null && !allMajorCategories.isEmpty()}">
-                    <a th:href="@{/san-pham/sach(q=${keyword}, sort=${sortBy})}"
+                    <a th:href="@{/san-pham/sach(q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy})}"
                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium transition-all">Sách</a>
-                    <a th:href="@{/san-pham/van-phong-pham(q=${keyword}, sort=${sortBy})}"
+                    <a th:href="@{/san-pham/van-phong-pham(q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy})}"
                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium transition-all">Văn phòng phẩm</a>
-                    <a th:href="@{/san-pham/qua-tang(q=${keyword}, sort=${sortBy})}"
+                    <a th:href="@{/san-pham/qua-tang(q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy})}"
                        class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium transition-all">Quà tặng &amp; Trang trí</a>
                 </th:block>
             </div>
 
             <!-- Pill Filters khi ĐÃ CHỌN Danh mục: Hiển thị các loại thuộc Danh mục đó -->
             <div th:if="${loaiSP != null && loaiSP != '' && loaiSP != 'ALL' && !#lists.isEmpty(categories)}" class="flex items-center gap-2 overflow-x-auto py-2 px-3 mb-space-md bg-surface-container-lowest rounded-2xl border border-surface-container/60 shadow-xs flex-nowrap scroll-smooth">
-                <a th:href="@{/san-pham(q=${keyword}, sort=${sortBy})}"
+                <a th:href="@{/san-pham(q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy})}"
                    class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold flex items-center gap-1 transition-all">
                     <span class="material-symbols-outlined text-[14px]">arrow_back</span>
                     <span>Tất cả danh mục</span>
@@ -75,12 +75,12 @@
                     <span class="material-symbols-outlined text-[16px] text-primary">sell</span>
                     <span th:text="${'Loại ' + (groupName ?: 'sản phẩm') + ':'}">Loại:</span>
                 </span>
-                <a th:href="@{${baseUrl}(loaiSP=${loaiSP}, q=${keyword}, sort=${sortBy}, tacGia=${selectedTacGia}, nxb=${selectedNxb})}"
+                <a th:href="@{${baseUrl}(loaiSP=${loaiSP}, q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy}, tacGia=${selectedTacGia}, nxb=${selectedNxb})}"
                    th:class="${selectedDanhMuc == null || selectedDanhMuc == 0} ? 'shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs' : 'shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium transition-all'">
                     <span th:text="${'Tất cả ' + (groupName ?: 'loại')}">Tất cả loại</span>
                 </a>
                 <a th:each="cat : ${categories}"
-                   th:href="@{${baseUrl}(loaiSP=${loaiSP}, danhMuc=${cat.maDanhMuc}, q=${keyword}, sort=${sortBy}, tacGia=${selectedTacGia}, nxb=${selectedNxb})}"
+                   th:href="@{${baseUrl}(loaiSP=${loaiSP}, danhMuc=${cat.maDanhMuc}, q=${keyword}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy}, tacGia=${selectedTacGia}, nxb=${selectedNxb})}"
                    th:text="${cat.tenDanhMuc}"
                    th:class="${selectedDanhMuc != null && selectedDanhMuc == cat.maDanhMuc} ? 'shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow-xs' : 'shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium transition-all'">
                     Văn học
@@ -149,6 +149,10 @@
                         </select>
                     </div>
 
+                    <!-- Hidden inputs cho khoảng giá từ thanh trượt -->
+                    <input type="hidden" name="giaTu" id="inputGiaTu" th:value="${giaTu}">
+                    <input type="hidden" name="giaDen" id="inputGiaDen" th:value="${giaDen}">
+
                     <!-- Sắp xếp -->
                     <select name="sort"
                             class="bg-surface-container-low text-on-surface text-sm px-space-md py-2.5 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/40 border border-transparent cursor-pointer min-w-[130px]">
@@ -168,6 +172,56 @@
                             <span class="material-symbols-outlined text-[18px]">restart_alt</span>
                             <span>Đặt lại</span>
                         </a>
+                    </div>
+                    <!-- Thanh kéo khoảng giá 2 đầu & Chọn khoảng giá nhanh -->
+                    <div class="w-full flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-3 border-t border-surface-container/60 text-xs">
+                        <!-- Dual Range Slider Container -->
+                        <div class="flex items-center gap-3 flex-1 max-w-xl">
+                            <span class="text-on-surface-variant font-medium shrink-0 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[16px] text-primary">tune</span>
+                                <span>Thanh trượt giá:</span>
+                            </span>
+                            <div class="relative flex-1 py-2 min-w-[150px]">
+                                <!-- Slider Background Track -->
+                                <div class="relative w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                                    <div id="priceSliderProgress" class="absolute top-0 bottom-0 bg-primary rounded-full" style="left: 0%; right: 0%;"></div>
+                                </div>
+                                <!-- Range inputs -->
+                                <input type="range" id="sliderGiaTu" min="0" max="2000000" step="10000"
+                                       th:value="${giaTu != null && giaTu > 0 ? (giaTu > 2000000 ? 2000000 : giaTu) : 0}"
+                                       class="price-slider-input absolute top-1/2 -translate-y-1/2 left-0 w-full appearance-none bg-transparent m-0 z-10"
+                                       oninput="onSliderGiaTuInput()"
+                                       onpointerdown="this.style.zIndex='25'"
+                                       onpointerup="updateSliderZIndex()">
+                                <input type="range" id="sliderGiaDen" min="0" max="2000000" step="10000"
+                                       th:value="${giaDen != null && giaDen > 0 ? (giaDen > 2000000 ? 2000000 : giaDen) : 2000000}"
+                                       class="price-slider-input absolute top-1/2 -translate-y-1/2 left-0 w-full appearance-none bg-transparent m-0 z-20"
+                                       oninput="onSliderGiaDenInput()"
+                                       onpointerdown="this.style.zIndex='25'"
+                                       onpointerup="updateSliderZIndex()">
+                            </div>
+                            <span id="sliderPriceLabel" class="text-[11px] text-on-surface-variant font-semibold shrink-0 min-w-[130px] text-right">
+                                0₫ - 2.000.000₫+
+                            </span>
+                        </div>
+
+                        <!-- Quick Price Chips -->
+                        <div class="flex items-center gap-1.5 flex-wrap shrink-0">
+                            <span class="text-on-surface-variant font-medium shrink-0 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[15px] text-primary">sell</span>
+                                <span>Nhanh:</span>
+                            </span>
+                            <button type="button" onclick="setQuickPrice('', '')"
+                                    th:class="${(giaTu == null || giaTu == 0) && (giaDen == null || giaDen == 0)} ? 'px-2.5 py-1 rounded-lg bg-primary text-on-primary font-bold shadow-xs' : 'px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-all'">Tất cả</button>
+                            <button type="button" onclick="setQuickPrice(0, 100000)"
+                                    th:class="${giaTu == 0 && giaDen == 100000} ? 'px-2.5 py-1 rounded-lg bg-primary text-on-primary font-bold shadow-xs' : 'px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-all'">Dưới 100k</button>
+                            <button type="button" onclick="setQuickPrice(100000, 200000)"
+                                    th:class="${giaTu == 100000 && giaDen == 200000} ? 'px-2.5 py-1 rounded-lg bg-primary text-on-primary font-bold shadow-xs' : 'px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-all'">100k - 200k</button>
+                            <button type="button" onclick="setQuickPrice(200000, 500000)"
+                                    th:class="${giaTu == 200000 && giaDen == 500000} ? 'px-2.5 py-1 rounded-lg bg-primary text-on-primary font-bold shadow-xs' : 'px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-all'">200k - 500k</button>
+                            <button type="button" onclick="setQuickPrice(500000, '')"
+                                    th:class="${giaTu == 500000 && (giaDen == null || giaDen == 0)} ? 'px-2.5 py-1 rounded-lg bg-primary text-on-primary font-bold shadow-xs' : 'px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-all'">Trên 500k</button>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -231,17 +285,17 @@
             <!-- Pagination -->
             <div th:if="${totalPages > 1}" class="flex items-center justify-center gap-space-xs mt-space-xl flex-wrap">
                 <a th:if="${currentPage > 0}"
-                   th:href="@{${baseUrl}(q=${keyword}, loaiSP=${loaiSP}, danhMuc=${selectedDanhMuc}, tacGia=${selectedTacGia}, nxb=${selectedNxb}, sort=${sortBy}, page=${currentPage - 1})}"
+                   th:href="@{${baseUrl}(q=${keyword}, loaiSP=${loaiSP}, danhMuc=${selectedDanhMuc}, tacGia=${selectedTacGia}, nxb=${selectedNxb}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy}, page=${currentPage - 1})}"
                    class="flex items-center gap-1 px-space-md py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-sm font-semibold transition-colors">
                     <span class="material-symbols-outlined text-[18px]">chevron_left</span><span>Trước</span>
                 </a>
                 <th:block th:each="i : ${#numbers.sequence(0, totalPages - 1)}">
-                    <a th:href="@{${baseUrl}(q=${keyword}, loaiSP=${loaiSP}, danhMuc=${selectedDanhMuc}, tacGia=${selectedTacGia}, nxb=${selectedNxb}, sort=${sortBy}, page=${i})}"
+                    <a th:href="@{${baseUrl}(q=${keyword}, loaiSP=${loaiSP}, danhMuc=${selectedDanhMuc}, tacGia=${selectedTacGia}, nxb=${selectedNxb}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy}, page=${i})}"
                        th:text="${i + 1}"
                        th:class="${i == currentPage} ? 'px-3.5 py-2 rounded-xl bg-primary text-on-primary text-sm font-bold shadow-sm' : 'px-3.5 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-sm font-semibold transition-colors'">1</a>
                 </th:block>
                 <a th:if="${currentPage < totalPages - 1}"
-                   th:href="@{${baseUrl}(q=${keyword}, loaiSP=${loaiSP}, danhMuc=${selectedDanhMuc}, tacGia=${selectedTacGia}, nxb=${selectedNxb}, sort=${sortBy}, page=${currentPage + 1})}"
+                   th:href="@{${baseUrl}(q=${keyword}, loaiSP=${loaiSP}, danhMuc=${selectedDanhMuc}, tacGia=${selectedTacGia}, nxb=${selectedNxb}, giaTu=${giaTu}, giaDen=${giaDen}, sort=${sortBy}, page=${currentPage + 1})}"
                    class="flex items-center gap-1 px-space-md py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-sm font-semibold transition-colors">
                     <span>Tiếp</span><span class="material-symbols-outlined text-[18px]">chevron_right</span>
                 </a>
@@ -253,6 +307,176 @@
     <footer th:replace="~{fragments/common/footer :: common_footer}"></footer>
 
     <script>
+        const MAX_SLIDER_PRICE = 2000000;
+
+        function formatMoney(amount) {
+            if (isNaN(amount) || amount == null) return '0₫';
+            return Number(amount).toLocaleString('vi-VN') + '₫';
+        }
+
+        function updateSliderProgressAndLabel() {
+            const sliderTu = document.getElementById('sliderGiaTu');
+            const sliderDen = document.getElementById('sliderGiaDen');
+            const progress = document.getElementById('priceSliderProgress');
+            const label = document.getElementById('sliderPriceLabel');
+            if (!sliderTu || !sliderDen || !progress) return;
+
+            let minVal = parseInt(sliderTu.value, 10) || 0;
+            let maxVal = parseInt(sliderDen.value, 10) || MAX_SLIDER_PRICE;
+
+            // ĐIỀU KIỆN: GIÁ CUỐI >= GIÁ ĐẦU
+            if (minVal > maxVal) {
+                minVal = maxVal;
+                sliderTu.value = minVal;
+            }
+
+            const leftPercent = Math.min(100, Math.max(0, (minVal / MAX_SLIDER_PRICE) * 100));
+            const rightPercent = Math.min(100, Math.max(0, 100 - ((maxVal / MAX_SLIDER_PRICE) * 100)));
+
+            progress.style.left = leftPercent + '%';
+            progress.style.right = rightPercent + '%';
+
+            if (label) {
+                const textMin = formatMoney(minVal);
+                const textMax = maxVal >= MAX_SLIDER_PRICE ? (formatMoney(maxVal) + '+') : formatMoney(maxVal);
+                label.textContent = textMin + ' - ' + textMax;
+            }
+        }
+
+        function updateSliderZIndex() {
+            const sliderTu = document.getElementById('sliderGiaTu');
+            const sliderDen = document.getElementById('sliderGiaDen');
+            if (!sliderTu || !sliderDen) return;
+            const tu = parseInt(sliderTu.value, 10) || 0;
+            const den = parseInt(sliderDen.value, 10) || MAX_SLIDER_PRICE;
+            if (tu >= den) {
+                if (tu >= MAX_SLIDER_PRICE * 0.9) {
+                    sliderTu.style.zIndex = '25';
+                    sliderDen.style.zIndex = '20';
+                } else {
+                    sliderTu.style.zIndex = '20';
+                    sliderDen.style.zIndex = '25';
+                }
+            } else {
+                sliderTu.style.zIndex = '15';
+                sliderDen.style.zIndex = '20';
+            }
+        }
+
+        function onSliderGiaTuInput() {
+            const sliderTu = document.getElementById('sliderGiaTu');
+            const sliderDen = document.getElementById('sliderGiaDen');
+            const inputTu = document.getElementById('inputGiaTu');
+            if (!sliderTu || !sliderDen) return;
+
+            let tu = parseInt(sliderTu.value, 10) || 0;
+            let den = parseInt(sliderDen.value, 10) || MAX_SLIDER_PRICE;
+
+            // ĐIỀU KIỆN: GIÁ CUỐI >= GIÁ ĐẦU
+            if (tu > den) {
+                tu = den;
+                sliderTu.value = tu;
+            }
+
+            if (inputTu) {
+                inputTu.value = tu > 0 ? tu : '';
+            }
+            updateSliderProgressAndLabel();
+            updateSliderZIndex();
+        }
+
+        function onSliderGiaDenInput() {
+            const sliderTu = document.getElementById('sliderGiaTu');
+            const sliderDen = document.getElementById('sliderGiaDen');
+            const inputDen = document.getElementById('inputGiaDen');
+            if (!sliderTu || !sliderDen) return;
+
+            let tu = parseInt(sliderTu.value, 10) || 0;
+            let den = parseInt(sliderDen.value, 10) || MAX_SLIDER_PRICE;
+
+            // ĐIỀU KIỆN: GIÁ CUỐI >= GIÁ ĐẦU
+            if (den < tu) {
+                den = tu;
+                sliderDen.value = den;
+            }
+
+            if (inputDen) {
+                inputDen.value = den >= MAX_SLIDER_PRICE ? '' : den;
+            }
+            updateSliderProgressAndLabel();
+            updateSliderZIndex();
+        }
+
+        function setQuickPrice(min, max) {
+            const inputGiaTu = document.getElementById('inputGiaTu');
+            const inputGiaDen = document.getElementById('inputGiaDen');
+            const sliderTu = document.getElementById('sliderGiaTu');
+            const sliderDen = document.getElementById('sliderGiaDen');
+
+            const numMin = (min !== '' && min !== null && !isNaN(min)) ? parseInt(min, 10) : 0;
+            const numMax = (max !== '' && max !== null && !isNaN(max)) ? parseInt(max, 10) : 0;
+
+            if (inputGiaTu) inputGiaTu.value = numMin > 0 ? numMin : '';
+            if (inputGiaDen) inputGiaDen.value = numMax > 0 ? numMax : '';
+
+            if (sliderTu) sliderTu.value = Math.min(numMin, MAX_SLIDER_PRICE);
+            if (sliderDen) sliderDen.value = numMax > 0 ? Math.min(numMax, MAX_SLIDER_PRICE) : MAX_SLIDER_PRICE;
+
+            updateSliderProgressAndLabel();
+
+            const form = document.getElementById('filterForm');
+            if (form) form.submit();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const inputTu = document.getElementById('inputGiaTu');
+            const inputDen = document.getElementById('inputGiaDen');
+            const sliderTu = document.getElementById('sliderGiaTu');
+            const sliderDen = document.getElementById('sliderGiaDen');
+            const form = document.getElementById('filterForm');
+
+            function syncInputsToSliders() {
+                if (!inputTu || !inputDen) return;
+                let tu = parseInt(inputTu.value, 10);
+                let den = parseInt(inputDen.value, 10);
+
+                // ĐIỀU KIỆN: GIÁ CUỐI >= GIÁ ĐẦU
+                if (!isNaN(tu) && !isNaN(den) && tu > den) {
+                    den = tu;
+                    inputDen.value = den;
+                }
+
+                if (sliderTu) {
+                    sliderTu.value = (!isNaN(tu) && tu > 0) ? Math.min(tu, MAX_SLIDER_PRICE) : 0;
+                }
+                if (sliderDen) {
+                    sliderDen.value = (!isNaN(den) && den > 0) ? Math.min(den, MAX_SLIDER_PRICE) : MAX_SLIDER_PRICE;
+                }
+                updateSliderProgressAndLabel();
+            }
+
+            if (inputTu) {
+                inputTu.addEventListener('change', syncInputsToSliders);
+            }
+            if (inputDen) {
+                inputDen.addEventListener('change', syncInputsToSliders);
+            }
+
+            if (form) {
+                form.addEventListener('submit', function () {
+                    if (inputTu && inputDen) {
+                        let tu = parseInt(inputTu.value, 10);
+                        let den = parseInt(inputDen.value, 10);
+                        if (!isNaN(tu) && !isNaN(den) && tu > den) {
+                            inputDen.value = tu;
+                        }
+                    }
+                });
+            }
+
+            updateSliderProgressAndLabel();
+        });
+
         function onCategoryGroupChange(group, isInit, keepCurrentCat) {
             const catSelect = document.getElementById('filterDanhMuc');
             const defaultCatOpt = document.getElementById('defaultCatOption');

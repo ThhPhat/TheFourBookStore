@@ -65,6 +65,8 @@ public class ProductController {
             @RequestParam(required = false) Integer danhMuc,
             @RequestParam(required = false) Integer tacGia,
             @RequestParam(required = false) Integer nxb,
+            @RequestParam(required = false) Integer giaTu,
+            @RequestParam(required = false) Integer giaDen,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             Model model) {
@@ -90,11 +92,19 @@ public class ProductController {
             nxb = null;
         }
 
+        if (giaTu != null && giaDen != null && giaTu > giaDen) {
+            int temp = giaTu;
+            giaTu = giaDen;
+            giaDen = temp;
+        }
+
         boolean isFiltering = (q != null && !q.isBlank()) ||
                               (loaiSP != null && !loaiSP.isBlank() && !"ALL".equalsIgnoreCase(loaiSP)) ||
                               (danhMuc != null && danhMuc > 0) ||
                               (tacGia != null && tacGia > 0) ||
-                              (nxb != null && nxb > 0);
+                              (nxb != null && nxb > 0) ||
+                              (giaTu != null && giaTu > 0) ||
+                              (giaDen != null && giaDen > 0);
 
         List<DanhMuc> categoriesSach = sanPhamService.getCategoriesByLoaiSP("Sach");
         List<DanhMuc> categoriesVpp = sanPhamService.getCategoriesByLoaiSP("VanPhongPham");
@@ -112,6 +122,10 @@ public class ProductController {
         model.addAttribute("authors",           tacGiaService.getAuthorsByLoaiSP("Sach"));
         model.addAttribute("authorCategoryMap", tacGiaService.getAuthorCategoryMap());
         model.addAttribute("publishers",        List.of());
+        model.addAttribute("giaTu",             giaTu);
+        model.addAttribute("giaDen",            giaDen);
+        model.addAttribute("keyword",           q != null ? q : "");
+        model.addAttribute("sortBy",            sort);
 
         if (loaiSP != null && !loaiSP.isBlank() && !"ALL".equalsIgnoreCase(loaiSP)) {
             model.addAttribute("categories", sanPhamService.getCategoriesByLoaiSP(loaiSP));
@@ -121,7 +135,12 @@ public class ProductController {
 
         if (isFiltering) {
             int pageSize = 12;
-            Page<SanPham> productPage = sanPhamService.searchAndFilter(loaiSP, q, danhMuc, tacGia, nxb, sort, page, pageSize);
+            Page<SanPham> productPage;
+            if ((giaTu != null && giaTu > 0) || (giaDen != null && giaDen > 0)) {
+                productPage = sanPhamService.searchAndFilter(loaiSP, q, danhMuc, tacGia, nxb, giaTu, giaDen, sort, page, pageSize);
+            } else {
+                productPage = sanPhamService.searchAndFilter(loaiSP, q, danhMuc, tacGia, nxb, sort, page, pageSize);
+            }
             List<vn.bookstore.the4bookstore.entity.Shop> matchedShops = List.of();
             if (q != null && !q.isBlank()) {
                 matchedShops = shopService.searchActiveShops(q);
@@ -139,6 +158,8 @@ public class ProductController {
             model.addAttribute("selectedDanhMuc", danhMuc);
             model.addAttribute("selectedTacGia",  tacGia);
             model.addAttribute("selectedNxb",     nxb);
+            model.addAttribute("giaTu",           giaTu);
+            model.addAttribute("giaDen",          giaDen);
             return "products/list";
         }
 
@@ -164,6 +185,8 @@ public class ProductController {
             @RequestParam(required = false) Integer danhMuc,
             @RequestParam(required = false) Integer tacGia,
             @RequestParam(required = false) Integer nxb,
+            @RequestParam(required = false) Integer giaTu,
+            @RequestParam(required = false) Integer giaDen,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             Model model) {
@@ -181,8 +204,19 @@ public class ProductController {
             }
         }
 
+        if (giaTu != null && giaDen != null && giaTu > giaDen) {
+            int temp = giaTu;
+            giaTu = giaDen;
+            giaDen = temp;
+        }
+
         int pageSize = 12;
-        Page<SanPham> productPage = sanPhamService.searchAndFilter("Sach", q, validDanhMuc, tacGia, nxb, sort, page, pageSize);
+        Page<SanPham> productPage;
+        if ((giaTu != null && giaTu > 0) || (giaDen != null && giaDen > 0)) {
+            productPage = sanPhamService.searchAndFilter("Sach", q, validDanhMuc, tacGia, nxb, giaTu, giaDen, sort, page, pageSize);
+        } else {
+            productPage = sanPhamService.searchAndFilter("Sach", q, validDanhMuc, tacGia, nxb, sort, page, pageSize);
+        }
         List<vn.bookstore.the4bookstore.entity.Shop> matchedShops = List.of();
         if (q != null && !q.isBlank()) {
             matchedShops = shopService.searchActiveShops(q);
@@ -207,6 +241,8 @@ public class ProductController {
         model.addAttribute("selectedDanhMuc", validDanhMuc);
         model.addAttribute("selectedTacGia",  tacGia);
         model.addAttribute("selectedNxb",     nxb);
+        model.addAttribute("giaTu",           giaTu);
+        model.addAttribute("giaDen",          giaDen);
         return "products/list";
     }
 
@@ -215,10 +251,12 @@ public class ProductController {
     public String vppList(
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) Integer danhMuc,
+            @RequestParam(required = false) Integer giaTu,
+            @RequestParam(required = false) Integer giaDen,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             Model model) {
-        buildGroupModel("VanPhongPham", "Văn Phòng Phẩm", "/san-pham/van-phong-pham", q, danhMuc, sort, page, model);
+        buildGroupModel("VanPhongPham", "Văn Phòng Phẩm", "/san-pham/van-phong-pham", q, danhMuc, giaTu, giaDen, sort, page, model);
         return "products/list";
     }
 
@@ -227,10 +265,12 @@ public class ProductController {
     public String quaTangList(
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) Integer danhMuc,
+            @RequestParam(required = false) Integer giaTu,
+            @RequestParam(required = false) Integer giaDen,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             Model model) {
-        buildGroupModel("QuaTang", "Quà Tặng & Trang Trí", "/san-pham/qua-tang", q, danhMuc, sort, page, model);
+        buildGroupModel("QuaTang", "Quà Tặng & Trang Trí", "/san-pham/qua-tang", q, danhMuc, giaTu, giaDen, sort, page, model);
         return "products/list";
     }
 
@@ -239,10 +279,12 @@ public class ProductController {
     public String boardGameList(
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) Integer danhMuc,
+            @RequestParam(required = false) Integer giaTu,
+            @RequestParam(required = false) Integer giaDen,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             Model model) {
-        buildGroupModel("BoardGame", "Board Game & Đồ Chơi", "/san-pham/board-game", q, danhMuc, sort, page, model);
+        buildGroupModel("BoardGame", "Board Game & Đồ Chơi", "/san-pham/board-game", q, danhMuc, giaTu, giaDen, sort, page, model);
         return "products/list";
     }
 
@@ -308,6 +350,11 @@ public class ProductController {
             @RequestParam(required = false) Integer giaDen,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "12") int size) {
+        if (giaTu != null && giaDen != null && giaTu > giaDen) {
+            int temp = giaTu;
+            giaTu = giaDen;
+            giaDen = temp;
+        }
         List<Map<String, Object>> items = sanPhamService.searchBooksWithProcedure(q, maDanhMuc, giaTu, giaDen, page, size);
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -318,7 +365,12 @@ public class ProductController {
     }
 
     private void buildGroupModel(String loaiSP, String groupName, String baseUrl,
-                                  String q, Integer maDanhMuc, String sort, int page, Model model) {
+                                  String q, Integer maDanhMuc, Integer giaTu, Integer giaDen, String sort, int page, Model model) {
+        if (giaTu != null && giaDen != null && giaTu > giaDen) {
+            int temp = giaTu;
+            giaTu = giaDen;
+            giaDen = temp;
+        }
         Integer validDanhMuc = maDanhMuc;
         if (validDanhMuc != null && validDanhMuc > 0) {
             final Integer checkId = validDanhMuc;
@@ -328,7 +380,12 @@ public class ProductController {
         }
 
         int pageSize = 12;
-        Page<SanPham> productPage = sanPhamService.searchAndFilter(loaiSP, q, validDanhMuc, sort, page, pageSize);
+        Page<SanPham> productPage;
+        if ((giaTu != null && giaTu > 0) || (giaDen != null && giaDen > 0)) {
+            productPage = sanPhamService.searchAndFilter(loaiSP, q, validDanhMuc, null, null, giaTu, giaDen, sort, page, pageSize);
+        } else {
+            productPage = sanPhamService.searchAndFilter(loaiSP, q, validDanhMuc, sort, page, pageSize);
+        }
         List<vn.bookstore.the4bookstore.entity.Shop> matchedShops = List.of();
         if (q != null && !q.isBlank()) {
             matchedShops = shopService.searchActiveShops(q);
@@ -352,6 +409,8 @@ public class ProductController {
         model.addAttribute("publishers",      List.of());
         model.addAttribute("selectedTacGia",  null);
         model.addAttribute("selectedNxb",     null);
+        model.addAttribute("giaTu",           giaTu);
+        model.addAttribute("giaDen",          giaDen);
     }
 
     private String getGroupName(String loaiSP) {
