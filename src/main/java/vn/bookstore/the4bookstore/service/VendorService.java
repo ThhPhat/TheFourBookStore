@@ -173,7 +173,7 @@ public class VendorService {
             sanPham.setISBN("BK-" + (System.currentTimeMillis() % 100000000));
         }
         if (sanPham.getMucTonToiThieu() == null) {
-            sanPham.setMucTonToiThieu(0);
+            sanPham.setMucTonToiThieu(10);
         }
         if (sanPham.getSoLuongTon() == null) {
             sanPham.setSoLuongTon(0);
@@ -533,6 +533,25 @@ public class VendorService {
     public KhuyenMai createShopPromotion(Integer maShop, KhuyenMai km) {
         Shop shop = shopRepository.findById(maShop)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy shop: " + maShop));
+
+        if (km.getMaCode() == null || km.getMaCode().trim().isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập mã voucher!");
+        }
+
+        String cleanCode = km.getMaCode().trim().toUpperCase();
+        km.setMaCode(cleanCode);
+
+        if (khuyenMaiRepository.existsByMaCode(cleanCode)) {
+            String shopPrefix = (shop.getSlug() != null && !shop.getSlug().isBlank())
+                    ? shop.getSlug().replace("-", "_").toUpperCase()
+                    : ("SHOP" + shop.getMaShop());
+            throw new IllegalArgumentException("Mã voucher '" + cleanCode + "' đã tồn tại trên sàn (đã được Admin hoặc Shop khác sử dụng)! Vui lòng chọn mã riêng cho shop (ví dụ: " + shopPrefix + "_" + cleanCode + " hoặc FS_" + shopPrefix + ").");
+        }
+
+        if (km.getTenKM() == null || km.getTenKM().trim().isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập tên chương trình khuyến mãi!");
+        }
+        km.setTenKM(km.getTenKM().trim());
 
         if (km.getNgayBatDau() != null && km.getNgayKetThuc() != null) {
             if (km.getNgayBatDau().isAfter(km.getNgayKetThuc())) {
